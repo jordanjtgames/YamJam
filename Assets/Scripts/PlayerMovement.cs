@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 public class PlayerMovement : MonoBehaviour
 {
+    public Transform allGrabs;
+    public List<Transform> grabPoints;
 
     public Transform player;
     public Transform hook;
@@ -25,7 +27,7 @@ public class PlayerMovement : MonoBehaviour
 
     public float hookRange = 45;
 
-    Vector3 hookPos;
+    Vector3 targetHookPos;
 
     public Vector2 tViz;
 
@@ -38,9 +40,22 @@ public class PlayerMovement : MonoBehaviour
 
     public int arcResolution = 10;
 
-    void Start()
+    public Rigidbody rb;
+    public Transform currentGrab;
+
+    public AnimationCurve velPowerOverDiist;
+
+    void Awake()
     {
+        GenerateGrabsList();
         hookLine.positionCount = arcResolution;
+    }
+
+    public void GenerateGrabsList() {
+        grabPoints = new List<Transform>();
+        foreach (SphereCollider SC in allGrabs.GetComponentsInChildren<SphereCollider>()) {
+            grabPoints.Add(SC.transform);
+        }
     }
 
     void Update()
@@ -61,22 +76,48 @@ public class PlayerMovement : MonoBehaviour
         tViz.y = Yt;
 
 
+        if(currentGrab != null) {
+            //Debug.Log("Grabbed");
+            rb.useGravity = false;
 
-        Vector3 currentHookPos = GameObject.Find("_PoI").transform.position;
-        Vector2 currentHookScreenPos = Camera.main.WorldToScreenPoint(currentHookPos);
-
-        if (Vector2.Distance(mousePos, currentHookScreenPos) < hookRange) {
-            testRI.enabled = false;
+            float dist = Vector3.Distance(currentGrab.position, player.position);
+            Vector3 holdPos = currentGrab.position + new Vector3(0, 0, -20);
+            Vector3 vel = (holdPos - player.position).normalized;
+            float pow = velPowerOverDiist.Evaluate(dist);
+            float mod = Mathf.Clamp(dist * 0.1f,0,1);
+            rb.velocity = vel * pow * mod;
         } else {
-            testRI.enabled = true;
-
+            rb.useGravity = true;
         }
+        
 
-        testRI.transform.position = currentHookScreenPos;
+        
 
-        hook_A.position = player.position;
-        hook_B.position = player.position + transform.TransformDirection(Vector3.forward * 7f);
-        hook_C.position = currentHookPos;
+        if(grabPoints != null) {
+            for (int i = 0; i < grabPoints.Count; i++) {
+                Vector3 currentHookPos = grabPoints[i].position;
+                Vector2 currentHookScreenPos = Camera.main.WorldToScreenPoint(currentHookPos);
+
+                bool inPlayerRange = Vector3.Distance(player.position, currentHookPos) < 60;
+
+                if (Vector2.Distance(mousePos, currentHookScreenPos) < hookRange && inPlayerRange) {
+                    testRI.enabled = false;
+                    targetHookPos = currentHookPos;
+                    if(Mouse.current.leftButton.ReadValue() == 1) {
+                        currentGrab = grabPoints[i];
+                    }
+                } else {
+                    testRI.enabled = true;
+
+                }
+
+                testRI.transform.position = currentHookScreenPos;
+
+                hook_A.position = player.position;
+                hook_B.position = player.position + transform.TransformDirection(Vector3.forward * 10f);//7
+                hook_C.position = Vector3.Lerp(hook_C.position, targetHookPos, Time.deltaTime * 6f);
+            }
+        }
 
         for (int i = 0; i < arcResolution; i++) {
             float at = 0;
