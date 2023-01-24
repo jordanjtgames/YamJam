@@ -111,8 +111,23 @@ public class PlayerMovement : MonoBehaviour
     bool reloading = false;
     float reload_t = 0;
 
+    public Transform currentHitPoI;
+
+    public Renderer shotgunRend;
+    public Color shotgunColour_hook;
+    public Color shotgunColour_Shooting;
+
     void Awake()
     {
+        GameObject canvas = GameObject.Find("Canvas");
+        crosshairRI = canvas.transform.Find("CrosshairRI").GetComponent<RawImage>();
+        crosshairGrabRI = canvas.transform.Find("CrosshairGrabRI").GetComponent<RawImage>();
+        topLeftRI = canvas.transform.Find("TopLeft").GetComponent<RawImage>();
+        bottomRightRI = canvas.transform.Find("BottomRight").GetComponent<RawImage>();
+        testRI = canvas.transform.Find("TestRI").GetComponent<RawImage>();
+        speedRI = canvas.transform.Find("SpeedRI").GetComponent<RawImage>();
+        vignette = canvas.transform.Find("Vignette").GetComponent<RawImage>();
+
         currentTint = normalTint;
         GenerateGrabsList();
         hookLine.positionCount = arcResolution;
@@ -121,8 +136,16 @@ public class PlayerMovement : MonoBehaviour
 
     public void GenerateGrabsList() {
         grabPoints = new List<Transform>();
+        /*
         foreach (SphereCollider SC in allGrabs.GetComponentsInChildren<SphereCollider>()) {
             grabPoints.Add(SC.transform);
+        }
+        */
+        foreach (ClimbingPoI PoI in GameObject.FindObjectsOfTypeAll(typeof(ClimbingPoI))) {
+            if (PoI.isActiveAndEnabled) {
+                grabPoints.Add(PoI.transform);
+                //Debug.Log(LC.gameObject.GetInstanceID());
+            }
         }
     }
 
@@ -151,15 +174,29 @@ public class PlayerMovement : MonoBehaviour
         float hookWidth = isSwinging ? 0.345f : 0.1f;
         hookLine.widthMultiplier = currentGrab == null ? 0f : hookWidth;
 
-        hookLine.enabled = !isShooting;
+        //hookLine.enabled = !isShooting;
         hookLine_Aim.enabled = !isShooting;
-        //laserSight.enabled = isShooting;
+        laserSight.enabled = isShooting;
         aimLight.enabled = isShooting;
+        shotgunRend.material.SetColor("_FresnelColour", isShooting ? shotgunColour_Shooting : shotgunColour_hook);
+
 
         Ray ray = Camera.main.ScreenPointToRay(mousePos);
         RaycastHit hit;
+        bool hitPoI = false;
         if (Physics.Raycast(ray, out hit, 100)) {
             aimLight.transform.position = hit.point + (player.position - hit.point).normalized;
+            if (Mouse.current.leftButton.ReadValue() == 0) {
+                if (hit.transform.GetComponentsInChildren<ClimbingPoI>() != null) {
+                    foreach (ClimbingPoI CPOI in hit.transform.GetComponentsInChildren<ClimbingPoI>()) {
+                        currentHitPoI = CPOI.transform;
+                        hit.collider.SendMessage("Highlighted", SendMessageOptions.DontRequireReceiver);
+                        hitPoI = true;
+                    }
+                } else {
+                    currentHitPoI = null;
+                }
+            }
         }
 
         if (currentGrab != null) {
@@ -214,29 +251,28 @@ public class PlayerMovement : MonoBehaviour
         bool hitSomething = false;
 
         if (grabPoints != null) {
-            for (int i = 0; i < grabPoints.Count; i++) {
-                Vector3 currentHookPos = grabPoints[i].position;
+            if(currentHitPoI != null) {
+                Vector3 currentHookPos = currentHitPoI.position;
                 Vector2 currentHookScreenPos = Camera.main.WorldToScreenPoint(currentHookPos);
-
                 bool inPlayerRange = Vector3.Distance(player.position, currentHookPos) < 90;
 
                 if (Vector2.Distance(mousePos, currentHookScreenPos) < hookRange && inPlayerRange && !isSwinging) {
                     hitSomething = true;
                     targetHookPos = currentHookPos;
-                    if(Mouse.current.leftButton.wasPressedThisFrame && !isShooting) {
-                        if(currentGrab != null) {
-                            if(grabPoints[i] != currentGrab) {
-                                currentGrab = grabPoints[i];
+                    if (Mouse.current.leftButton.wasPressedThisFrame && !isShooting) {
+                        if (currentGrab != null) {
+                            if (currentHitPoI != currentGrab) {
+                                currentGrab = currentHitPoI;
                                 swingDelay = 0.1f;
                                 grabStep_t = 0;
                             } else {
-                                if(swingDelay <= 0) {
+                                if (swingDelay <= 0) {
                                     swingStartPos = mousePos;
                                     isSwinging = true;
                                 }
                             }
                         } else {
-                            currentGrab = grabPoints[i];
+                            currentGrab = currentHitPoI;
                             swingDelay = 0.1f;
                             grabStep_t = 0;
                         }
@@ -249,18 +285,77 @@ public class PlayerMovement : MonoBehaviour
 
 
                 testRI.transform.position = currentHookScreenPos;
-                hookAim_C = Vector3.Lerp(hookAim_C, targetHookPos, Time.deltaTime * 6f);
+                hookAim_C = Vector3.Lerp(hookAim_C, currentHitPoI != null ? currentHitPoI.position : targetHookPos, Time.deltaTime * 6f);
 
                 hook_A.position = player.position + transform.TransformDirection(Vector3.back * 2f);
                 hook_B.position = player.position + transform.TransformDirection(Vector3.forward * 10f);//7
-                if(currentGrab == null)
+
+                if (currentGrab == null)
                     hook_C.position = Vector3.Lerp(hook_C.position, targetHookPos, Time.deltaTime * 6f);
                 else
                     hook_C.position = Vector3.Lerp(hook_C.position, currentGrab.position, Time.deltaTime * 6f);
 
                 hookAim_A = hook_A.position;
                 hookAim_B = hook_B.position;
+
+            } else {
+                for (int i = 0; i < grabPoints.Count; i++) {
+                    Vector3 currentHookPos = grabPoints[i].position;
+                    bool lookingAtGrab = false;
+                    if (currentGrab != null && currentHitPoI != null) {
+                        if (currentHitPoI == currentGrab)
+                            lookingAtGrab = true;
+                    }
+                    //if (currentHitPoI != null && !lookingAtGrab)
+                    //    currentHookPos = currentHitPoI.position;
+                    Vector2 currentHookScreenPos = Camera.main.WorldToScreenPoint(currentHookPos);
+
+                    bool inPlayerRange = Vector3.Distance(player.position, currentHookPos) < 90;
+
+                    if (Vector2.Distance(mousePos, currentHookScreenPos) < hookRange && inPlayerRange && !isSwinging) {
+                        hitSomething = true;
+                        targetHookPos = currentHookPos;
+                        if (Mouse.current.leftButton.wasPressedThisFrame && !isShooting) {
+                            if (currentGrab != null) {
+                                if (grabPoints[i] != currentGrab) {
+                                    currentGrab = grabPoints[i];
+                                    swingDelay = 0.1f;
+                                    grabStep_t = 0;
+                                } else {
+                                    if (swingDelay <= 0) {
+                                        swingStartPos = mousePos;
+                                        isSwinging = true;
+                                    }
+                                }
+                            } else {
+                                currentGrab = grabPoints[i];
+                                swingDelay = 0.1f;
+                                grabStep_t = 0;
+                            }
+                        }
+                    } else {
+
+                    }
+
+                    hookLine_Aim.widthMultiplier = hitSomething ? 0.1f : 0f;
+
+
+                    testRI.transform.position = currentHookScreenPos;
+                    hookAim_C = Vector3.Lerp(hookAim_C, currentHitPoI != null ? currentHitPoI.position : targetHookPos, Time.deltaTime * 6f);
+
+                    hook_A.position = player.position + transform.TransformDirection(Vector3.back * 2f);
+                    hook_B.position = player.position + transform.TransformDirection(Vector3.forward * 10f);//7
+
+                    if (currentGrab == null)
+                        hook_C.position = Vector3.Lerp(hook_C.position, targetHookPos, Time.deltaTime * 6f);
+                    else
+                        hook_C.position = Vector3.Lerp(hook_C.position, currentGrab.position, Time.deltaTime * 6f);
+
+                    hookAim_A = hook_A.position;
+                    hookAim_B = hook_B.position;
+                }
             }
+            
         }
 
 
@@ -326,7 +421,8 @@ public class PlayerMovement : MonoBehaviour
             //slowMotion = !slowMotion;
         }
         slowMotion = isShooting;
-        if (Keyboard.current.spaceKey.wasPressedThisFrame || Mouse.current.rightButton.wasPressedThisFrame) {
+        if (Keyboard.current.digit2Key.wasPressedThisFrame ||
+            Keyboard.current.digit1Key.wasPressedThisFrame || Mouse.current.rightButton.wasPressedThisFrame) {
             if (isSwinging) {
                 isSwinging = false;
                 swingOffset = Vector3.zero;
@@ -359,6 +455,11 @@ public class PlayerMovement : MonoBehaviour
             hasShot = true;
             shootTime = 0.5f;
             viewAnim.Play("ViewShot");
+            if (isShooting) {
+                Vector3 dir = (aimLight.transform.position - player.position).normalized;
+                //shootAnim.TransformDirection(Vector3.back * 123);
+                rb.velocity += dir * -123;
+            }
         }
 
         if (hasShot) {
