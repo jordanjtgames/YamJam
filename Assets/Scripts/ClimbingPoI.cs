@@ -78,7 +78,6 @@ public class ClimbingPoI : MonoBehaviour
         hightlight = Mathf.Lerp(hightlight, 1f, Time.deltaTime * 8f);
         highlighted = true;
         checkDelay = 0.15f;
-        Debug.Log("Highlih");
     }
 
     public void HoldingPlayer() {

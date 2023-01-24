@@ -5,6 +5,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.VFX;
 
 
 public class PlayerMovement : MonoBehaviour
@@ -126,6 +127,8 @@ public class PlayerMovement : MonoBehaviour
     public Transform lookAtAim;
     public Transform hookStartPos;
 
+    public VisualEffect explosionVFX;
+
     void Awake()
     {
         GameObject canvas = GameObject.Find("Canvas");
@@ -136,6 +139,7 @@ public class PlayerMovement : MonoBehaviour
         testRI = canvas.transform.Find("TestRI").GetComponent<RawImage>();
         speedRI = canvas.transform.Find("SpeedRI").GetComponent<RawImage>();
         vignette = canvas.transform.Find("Vignette").GetComponent<RawImage>();
+        postFX = GameObject.Find("PostFX").GetComponent<Volume>();
 
         currentTint = normalTint;
         GenerateGrabsList();
@@ -475,6 +479,8 @@ public class PlayerMovement : MonoBehaviour
             hasShot = true;
             shootTime = 0.5f;
             viewAnim.Play("ViewShot");
+            explosionVFX.transform.position = aimLight.transform.position;
+            explosionVFX.Play();
             if (isShooting) {
                 Vector3 dir = (aimLight.transform.position - player.position).normalized;
                 //shootAnim.TransformDirection(Vector3.back * 123);
