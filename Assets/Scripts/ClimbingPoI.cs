@@ -15,6 +15,7 @@ public class ClimbingPoI : MonoBehaviour
     Vector3 startLocalScale;
     bool holdingPlayer = false;
     float holdingCheck = 0.1f;
+    bool kicked = false;
 
     //float shrink_t = 0;
 
@@ -37,7 +38,7 @@ public class ClimbingPoI : MonoBehaviour
         if(id == 1) {
 
         } else if(id == 2) {
-
+            GetComponent<Renderer>().material.SetFloat("_FullColour", Mathf.Lerp(GetComponent<Renderer>().material.GetFloat("_FullColour"), holdingPlayer ? 5f : 0f, Time.deltaTime * 3f));
         }
 
         if (highlighted) {
@@ -55,13 +56,17 @@ public class ClimbingPoI : MonoBehaviour
             holdingCheck -= Time.deltaTime;
             if(holdingCheck <= 0) {
                 holdingPlayer = false;
+                kicked = false;
             }
         }
 
         if (id == 2) {
             transform.localScale = Vector3.MoveTowards(transform.localScale, startLocalScale * (holdingPlayer ? 0.01f : 1f), Time.deltaTime * 6f);
-            if(holdingPlayer && transform.localScale.x < 0.5f) {
-                Debug.LogError("KickPlayer");
+            if(holdingPlayer && transform.localScale.x < 0.35f) {
+                if (!kicked) {
+                    GameObject.Find("_Player").GetComponent<PlayerMovement>().KickPlayer(Vector3.back);
+                    kicked = true;
+                }
             }
         }
 

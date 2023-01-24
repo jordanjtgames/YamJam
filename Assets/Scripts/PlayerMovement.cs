@@ -31,6 +31,7 @@ public class PlayerMovement : MonoBehaviour
     public RawImage topLeftRI;
     public RawImage bottomRightRI;
 
+    public float maxSpeed = 70;//50
     public float playerRange = 90;
     public float hookRange = 45;
 
@@ -251,7 +252,6 @@ public class PlayerMovement : MonoBehaviour
 
             player.rotation = Quaternion.Lerp(player.rotation, lookFWD.rotation, Time.deltaTime * 5f);
 
-            float maxSpeed = 70;//50
             if(rb.velocity.magnitude > maxSpeed) {
                 rb.velocity = Vector3.ClampMagnitude(rb.velocity, maxSpeed);
             }
@@ -553,7 +553,16 @@ public class PlayerMovement : MonoBehaviour
         hook.localScale = Vector3.one * 1f;
     }
 
-    public void KickPlayer() {
+    public void KickPlayer(Vector3 velocity) {
+        isSwinging = false;
+        swingOffset = Vector3.zero;
+        camLookAt.rotation = camLookFWD.rotation;
+        currentGrab = null;
+        if(Mouse.current.leftButton.ReadValue() == 1)
+            needsToReleaseShoot = true;
+        rb.velocity = velocity;
+        hook.position = new Vector3(0, -100, 0);
+        //Debug.Log("KickPlayer");
 
     }
 
