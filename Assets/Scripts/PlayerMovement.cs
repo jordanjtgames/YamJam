@@ -31,6 +31,8 @@ public class PlayerMovement : MonoBehaviour
     public RawImage topLeftRI;
     public RawImage bottomRightRI;
 
+    public float maxSpeed = 70;//50
+    public float playerRange = 90;
     public float hookRange = 45;
 
     Vector3 targetHookPos;
@@ -45,7 +47,7 @@ public class PlayerMovement : MonoBehaviour
     public LineRenderer hookLine;
     public LineRenderer hookLine_Aim;
 
-    int arcResolution = 15;
+    int arcResolution = 20;//15
 
     public Rigidbody rb;
     public Transform currentGrab;
@@ -117,6 +119,12 @@ public class PlayerMovement : MonoBehaviour
     public Color shotgunColour_hook;
     public Color shotgunColour_Shooting;
 
+    float Yt;
+    float Xt;
+
+    public Transform lookAtAim;
+    public Transform hookStartPos;
+
     void Awake()
     {
         GameObject canvas = GameObject.Find("Canvas");
@@ -154,13 +162,17 @@ public class PlayerMovement : MonoBehaviour
         mousePos = Mouse.current.position.ReadValue();
         crosshairRI.transform.position = mousePos;
 
-        float Yt = mousePos.y / topLeftRI.transform.position.y;
-        float Xt = mousePos.x / bottomRightRI.transform.position.x;
+        Yt = Mathf.Lerp(Yt, isShooting ? 0.5f : (mousePos.y / topLeftRI.transform.position.y), Time.unscaledDeltaTime * 75f);
+        Xt = Mathf.Lerp(Xt, isShooting ? 0.5f : (mousePos.x / bottomRightRI.transform.position.x), Time.unscaledDeltaTime * 75f);
 
         Quaternion UD = Quaternion.Lerp(Rot_U.localRotation, Rot_D.localRotation, 1f-Yt);
         Quaternion LR = Quaternion.Lerp(Rot_L.localRotation, Rot_R.localRotation, Xt);
 
-        Rot_LR.localRotation = LR;
+        if (isShooting)
+            Rot_LR.rotation = Quaternion.Lerp(Rot_LR.rotation, lookAtAim.rotation, Time.deltaTime * 8f);
+        else
+            Rot_LR.localRotation = Quaternion.Lerp(Rot_LR.localRotation, LR, Time.deltaTime * 8f);
+        //Rot_LR.localRotation = LR;
         Rot_UD.localRotation = UD;
 
         tViz.x = Xt;
@@ -198,8 +210,10 @@ public class PlayerMovement : MonoBehaviour
                 }
             }
         }
+        lookAtAim.LookAt(aimLight.transform.position);
 
         if (currentGrab != null) {
+            currentGrab.SendMessage("HoldingPlayer", SendMessageOptions.DontRequireReceiver);
             //Debug.Log("Grabbed");
             grabStep_t += Time.deltaTime;
             Mathf.Clamp01(grabStep_t);
@@ -238,7 +252,6 @@ public class PlayerMovement : MonoBehaviour
 
             player.rotation = Quaternion.Lerp(player.rotation, lookFWD.rotation, Time.deltaTime * 5f);
 
-            float maxSpeed = 70;//50
             if(rb.velocity.magnitude > maxSpeed) {
                 rb.velocity = Vector3.ClampMagnitude(rb.velocity, maxSpeed);
             }
@@ -254,7 +267,7 @@ public class PlayerMovement : MonoBehaviour
             if(currentHitPoI != null) {
                 Vector3 currentHookPos = currentHitPoI.position;
                 Vector2 currentHookScreenPos = Camera.main.WorldToScreenPoint(currentHookPos);
-                bool inPlayerRange = Vector3.Distance(player.position, currentHookPos) < 90;
+                bool inPlayerRange = Vector3.Distance(player.position, currentHookPos) < playerRange;
 
                 if (Vector2.Distance(mousePos, currentHookScreenPos) < hookRange && inPlayerRange && !isSwinging) {
                     hitSomething = true;
@@ -265,6 +278,7 @@ public class PlayerMovement : MonoBehaviour
                                 currentGrab = currentHitPoI;
                                 swingDelay = 0.1f;
                                 grabStep_t = 0;
+                                SetupHook();
                             } else {
                                 if (swingDelay <= 0) {
                                     swingStartPos = mousePos;
@@ -275,6 +289,7 @@ public class PlayerMovement : MonoBehaviour
                             currentGrab = currentHitPoI;
                             swingDelay = 0.1f;
                             grabStep_t = 0;
+                            SetupHook();
                         }
                     }
                 } else {
@@ -290,10 +305,11 @@ public class PlayerMovement : MonoBehaviour
                 hook_A.position = player.position + transform.TransformDirection(Vector3.back * 2f);
                 hook_B.position = player.position + transform.TransformDirection(Vector3.forward * 10f);//7
 
+                Vector3 offsetC = new Vector3(0, 0.8f, 2);
                 if (currentGrab == null)
-                    hook_C.position = Vector3.Lerp(hook_C.position, targetHookPos, Time.deltaTime * 6f);
+                    hook_C.position = Vector3.Lerp(hook_C.position, targetHookPos + offsetC, Time.deltaTime * 6f);
                 else
-                    hook_C.position = Vector3.Lerp(hook_C.position, currentGrab.position, Time.deltaTime * 6f);
+                    hook_C.position = Vector3.Lerp(hook_C.position, currentGrab.position + offsetC, Time.deltaTime * 6f);
 
                 hookAim_A = hook_A.position;
                 hookAim_B = hook_B.position;
@@ -310,7 +326,7 @@ public class PlayerMovement : MonoBehaviour
                     //    currentHookPos = currentHitPoI.position;
                     Vector2 currentHookScreenPos = Camera.main.WorldToScreenPoint(currentHookPos);
 
-                    bool inPlayerRange = Vector3.Distance(player.position, currentHookPos) < 90;
+                    bool inPlayerRange = Vector3.Distance(player.position, currentHookPos) < playerRange;
 
                     if (Vector2.Distance(mousePos, currentHookScreenPos) < hookRange && inPlayerRange && !isSwinging) {
                         hitSomething = true;
@@ -321,6 +337,7 @@ public class PlayerMovement : MonoBehaviour
                                     currentGrab = grabPoints[i];
                                     swingDelay = 0.1f;
                                     grabStep_t = 0;
+                                    SetupHook();
                                 } else {
                                     if (swingDelay <= 0) {
                                         swingStartPos = mousePos;
@@ -331,6 +348,7 @@ public class PlayerMovement : MonoBehaviour
                                 currentGrab = grabPoints[i];
                                 swingDelay = 0.1f;
                                 grabStep_t = 0;
+                                SetupHook();
                             }
                         }
                     } else {
@@ -346,10 +364,11 @@ public class PlayerMovement : MonoBehaviour
                     hook_A.position = player.position + transform.TransformDirection(Vector3.back * 2f);
                     hook_B.position = player.position + transform.TransformDirection(Vector3.forward * 10f);//7
 
+                    Vector3 offsetC = new Vector3(0, 0.8f, 2);
                     if (currentGrab == null)
-                        hook_C.position = Vector3.Lerp(hook_C.position, targetHookPos, Time.deltaTime * 6f);
+                        hook_C.position = Vector3.Lerp(hook_C.position, targetHookPos + offsetC, Time.deltaTime * 6f);
                     else
-                        hook_C.position = Vector3.Lerp(hook_C.position, currentGrab.position, Time.deltaTime * 6f);
+                        hook_C.position = Vector3.Lerp(hook_C.position, currentGrab.position + offsetC, Time.deltaTime * 6f);
 
                     hookAim_A = hook_A.position;
                     hookAim_B = hook_B.position;
@@ -526,6 +545,25 @@ public class PlayerMovement : MonoBehaviour
         reload_t = 0f;
         reloading = true;
         hasShot = true;
+    }
+
+    public void SetupHook() {
+        hook.position = currentGrab.position + new Vector3(0,0,-1.1f);
+        hook.rotation = player.rotation;
+        hook.localScale = Vector3.one * 1f;
+    }
+
+    public void KickPlayer(Vector3 velocity) {
+        isSwinging = false;
+        swingOffset = Vector3.zero;
+        camLookAt.rotation = camLookFWD.rotation;
+        currentGrab = null;
+        if(Mouse.current.leftButton.ReadValue() == 1)
+            needsToReleaseShoot = true;
+        rb.velocity = velocity;
+        hook.position = new Vector3(0, -100, 0);
+        //Debug.Log("KickPlayer");
+
     }
 
     Vector3 QuadCurve(Vector3 start, Vector3 mid, Vector3 end, float t) {
