@@ -206,9 +206,11 @@ public class PlayerMovement : MonoBehaviour
             if (Mouse.current.leftButton.ReadValue() == 0) {
                 if (hit.transform.GetComponentsInChildren<ClimbingPoI>() != null) {
                     foreach (ClimbingPoI CPOI in hit.transform.GetComponentsInChildren<ClimbingPoI>()) {
-                        currentHitPoI = CPOI.transform;
-                        hit.collider.SendMessage("Highlighted", SendMessageOptions.DontRequireReceiver);
-                        hitPoI = true;
+                        if (Vector3.Distance(player.position, CPOI.transform.position) < playerRange) {
+                            currentHitPoI = CPOI.transform;
+                            hit.collider.SendMessage("Highlighted", SendMessageOptions.DontRequireReceiver);
+                            hitPoI = true;
+                        }
                     }
                 } else {
                     currentHitPoI = null;
@@ -234,7 +236,7 @@ public class PlayerMovement : MonoBehaviour
             //float finalStep = Mathf.Lerp(step, )
             //step = stepOverTime.Evaluate(grabStep_t);
 
-            rb.velocity = Vector3.SmoothDamp(rb.velocity, vel * pow * mod * 0.25f, ref refVel, step);
+            rb.velocity = Vector3.SmoothDamp(rb.velocity, vel * pow * mod * 0.175f, ref refVel, step);//0.25f
 
             if (dist > 3) {
                 //rb.velocity = vel * pow * mod;
@@ -382,6 +384,16 @@ public class PlayerMovement : MonoBehaviour
             
         }
 
+        if (!hitSomething && currentGrab != null && !needsToReleaseShoot && Mouse.current.leftButton.ReadValue() == 1) {
+            if (!isSwinging && !isShooting) {
+                if (swingDelay <= 0) {
+                    swingStartPos = mousePos;
+                    isSwinging = true;
+                }
+            }
+            //Debug.Log("SWING");
+        }
+
 
         for (int i = 0; i < arcResolution; i++) {
             float at = 0;
@@ -401,7 +413,7 @@ public class PlayerMovement : MonoBehaviour
 
         gunFWD.localPosition = Vector3.Lerp(gunFWD.localPosition, isSwinging ? new Vector3(swayX, swayY, -3.54f) : new Vector3(swayX, swayY, -2.06f), Time.deltaTime * 4f);
         Camera.main.fieldOfView = Mathf.Lerp(Camera.main.fieldOfView, isSwinging ? 70 : 80, Time.deltaTime * 5f);
-        camLook.rotation = Quaternion.Lerp(camLook.rotation, isSwinging ? camLookAt.rotation : camLookFWD.rotation, Time.deltaTime * 3.5f);
+        //camLook.rotation = Quaternion.Lerp(camLook.rotation, isSwinging ? camLookAt.rotation : camLookFWD.rotation, Time.deltaTime * 3.5f);
         vignette.color = Color.Lerp(vignette.color, isSwinging ? new Color(0, 0, 0, 1) : new Color(0, 0, 0, 0), Time.deltaTime * 3.4f);
 
         if(rb.velocity.magnitude < 23) {
