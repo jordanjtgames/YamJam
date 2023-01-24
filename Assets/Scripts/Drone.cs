@@ -26,6 +26,11 @@ public class Drone : MonoBehaviour
     public Transform hover;
 
     public float detectRange = 40f;
+    bool playerDetected = false;
+    public Transform droneFWD;
+    public Transform droneLookAt;
+
+    bool dead = false;
 
     void Start()
     {
@@ -34,13 +39,19 @@ public class Drone : MonoBehaviour
 
     void Update()
     {
-        Vector3 targetPos = moveToA ? A.position : B.position;
-        Vector3 hoverOffset = new Vector3(0, Mathf.Sin(Time.time * 28.5f) * 0.08f, 0);
+        Vector3 targetPos = moveToA ? A.localPosition : B.localPosition;
+        Vector3 hoverOffset = new Vector3(0, Mathf.Sin(Time.time * 58.5f) * 0.038f, 0);
 
-        hover.transform.localPosition = hoverOffset;
+        //hover.transform.localPosition = hoverOffset;
 
-        if (!waiting)
-            drone.position = Vector3.MoveTowards(drone.position, targetPos, Time.deltaTime * speed);
+        playerDetected = Vector3.Distance(Camera.main.transform.position, drone.position) < detectRange;
+        droneLookAt.position = drone.position;
+        if (playerDetected)
+            droneLookAt.LookAt(Camera.main.transform.position);
+        drone.rotation = Quaternion.Lerp(drone.rotation, playerDetected ? droneLookAt.rotation : droneFWD.rotation, Time.deltaTime * 19f);
+
+        if (!waiting && !dead)
+            drone.localPosition = Vector3.Lerp(drone.localPosition, targetPos, Time.deltaTime * speed * 0.15f);
 
 
 
@@ -67,5 +78,14 @@ public class Drone : MonoBehaviour
         Halo_B.LookAt(Camera.main.transform.position);
         LR.SetPosition(0,A.position);
         LR.SetPosition(1,B.position);
+    }
+
+    public void Shot() {
+        //Debug.LogError("GotShot");
+        dead = true;
+        drone.gameObject.SetActive(false);
+        Halo_A.gameObject.SetActive(false);
+        Halo_B.gameObject.SetActive(false);
+        LR.enabled = false;
     }
 }

@@ -17,12 +17,12 @@ public class MovingPlatform : MonoBehaviour
 
     void Update()
     {
-        Vector3 targetPos = moveToA ? A.position : B.position;
+        Vector3 targetPos = moveToA ? A.localPosition : B.localPosition;
 
         if(!waiting)
-            platform.position = Vector3.MoveTowards(platform.position, targetPos, Time.deltaTime * speed);
+            platform.localPosition = Vector3.MoveTowards(platform.localPosition, targetPos, Time.deltaTime * speed);
 
-        if (Vector3.Distance(platform.position, targetPos) < 0.1f) {
+        if (Vector3.Distance(platform.localPosition, targetPos) < 0.1f) {
             t = pauseDelay;
             waiting = true;
             moveToA = !moveToA;

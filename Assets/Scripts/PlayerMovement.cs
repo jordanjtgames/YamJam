@@ -134,8 +134,13 @@ public class PlayerMovement : MonoBehaviour
     public Transform barrel_Hook;
     public Renderer handel;
 
-
     float rotate_t = 0;
+
+    int ammo = 3;
+    float barrelDarken = 0f;
+    float ammoRegen = 1f;
+
+    public VisualEffect hookVFX;
 
     void Awake()
     {
@@ -210,8 +215,32 @@ public class PlayerMovement : MonoBehaviour
         //shotgunRend.material.SetColor("_FresnelColour", isShooting ? shotgunColour_Shooting : shotgunColour_hook);
         barrel.GetComponent<Renderer>().material.SetColor("_Tint", Color.Lerp(barrel.GetComponent<Renderer>().material.GetColor("_Tint"), 
             isShooting ? shotgunColour_Shooting : shotgunColour_hook, Time.unscaledDeltaTime * 10f));
+        switch (ammo) {
+            case 3:
+                barrelDarken = 0f;
+                break;
+            case 2:
+                barrelDarken = 0.33f;
+                break;
+            case 1:
+                barrelDarken = 0.66f;
+                break;
+            case 0:
+                barrelDarken = 1f;
+                break;
+        }
+        barrel.GetComponent<Renderer>().material.SetFloat("_Darken", barrelDarken);
 
-        Ray ray = Camera.main.ScreenPointToRay(mousePos);
+        if (ammoRegen < 1f) {
+            ammoRegen += Time.unscaledDeltaTime * 0.7f;
+            if (ammoRegen >= 1f) {
+                if(ammo != 3)
+                    ammo++;
+                ammoRegen = 0;
+            }
+        }
+
+            Ray ray = Camera.main.ScreenPointToRay(mousePos);
         RaycastHit hit;
         bool hitPoI = false;
         if (Physics.Raycast(ray, out hit, 100)) {
@@ -227,7 +256,11 @@ public class PlayerMovement : MonoBehaviour
                     }
                 } else {
                     currentHitPoI = null;
-                }
+                }   
+            }
+            if (isShooting && ammo > 0 && hit.collider.tag == "Enemy" && Mouse.current.leftButton.wasPressedThisFrame) {
+                if (hit.collider.gameObject.name == "DroneCol")
+                    hit.collider.transform.parent.parent.SendMessage("Shot");
             }
         }
         lookAtAim.LookAt(aimLight.transform.position);
@@ -277,6 +310,10 @@ public class PlayerMovement : MonoBehaviour
             if(rb.velocity.magnitude > maxSpeed) {
                 rb.velocity = Vector3.ClampMagnitude(rb.velocity, maxSpeed);
             }
+
+            hook.position = hookStartPos.position;
+            hook.rotation = hookStartPos.rotation;
+            hook.localScale = Vector3.one * 0.45199f;
         }
 
         if (Keyboard.current.rKey.wasPressedThisFrame && !reloading && !isSwinging) {
@@ -513,17 +550,27 @@ public class PlayerMovement : MonoBehaviour
         currentTint = Color.Lerp(currentTint, isShooting ? shootingTint : normalTint, Time.deltaTime);
         colAdj.colorFilter.value = currentTint;
 
-        if (Mouse.current.leftButton.wasPressedThisFrame && !hasShot && !needsToReleaseShoot && !reloading) {
+        if (Mouse.current.leftButton.wasPressedThisFrame && !hasShot && !needsToReleaseShoot && !reloading && ammo > 0) {
             hasShot = true;
             shootTime = 0.5f;
             viewAnim.Play("ViewShot");
             
+
             if (isShooting) {
                 Vector3 dir = (aimLight.transform.position - player.position).normalized;
                 //shootAnim.TransformDirection(Vector3.back * 123);
                 rb.velocity += dir * -123;
                 explosionVFX.transform.position = aimLight.transform.position;
                 explosionVFX.Play();
+                if (ammo == 0) {
+                    //Reload();
+                } else {
+
+                }
+                if (ammo > 0)
+                    ammo--;
+                
+                ammoRegen = 0f;
             }
         }
 
@@ -547,18 +594,18 @@ public class PlayerMovement : MonoBehaviour
         }
 
         if (reloading) {
-            reload_t += Time.deltaTime;
+            reload_t += Time.unscaledDeltaTime;
             
             if (reload_t < 0.35f)
-                shootAnim.localPosition = Vector3.Lerp(shootAnim.localPosition, reloadPos.localPosition, Time.deltaTime * 7.55f);
+                shootAnim.localPosition = Vector3.Lerp(shootAnim.localPosition, reloadPos.localPosition, Time.unscaledDeltaTime * 7.55f);
             else
-                shootAnim.localPosition = Vector3.Lerp(shootAnim.localPosition, idlePos.localPosition, Time.deltaTime * 10f);
+                shootAnim.localPosition = Vector3.Lerp(shootAnim.localPosition, idlePos.localPosition, Time.unscaledDeltaTime * 10f);
             
 
             if(reload_t > 0.13f && reload_t < 0.6f)
-                shootAnim.localRotation = Quaternion.Lerp(shootAnim.localRotation, reloadPos.localRotation, Time.deltaTime * 15f);
+                shootAnim.localRotation = Quaternion.Lerp(shootAnim.localRotation, reloadPos.localRotation, Time.unscaledDeltaTime * 15f);
             else
-                shootAnim.localRotation = Quaternion.Lerp(shootAnim.localRotation, idlePos.localRotation, Time.deltaTime * 10f);
+                shootAnim.localRotation = Quaternion.Lerp(shootAnim.localRotation, idlePos.localRotation, Time.unscaledDeltaTime * 10f);
 
 
             if (reload_t > 1f) {
@@ -596,6 +643,10 @@ public class PlayerMovement : MonoBehaviour
     public void SetupHook() {
         hook.rotation = player.rotation;
         hook.localScale = Vector3.one * 1f;
+        if (currentGrab != null) {
+            hookVFX.transform.position = currentGrab.transform.position;
+            hookVFX.Play();
+        }
     }
 
     public void KickPlayer(Vector3 velocity) {
