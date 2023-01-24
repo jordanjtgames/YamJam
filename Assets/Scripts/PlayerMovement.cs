@@ -129,8 +129,18 @@ public class PlayerMovement : MonoBehaviour
 
     public VisualEffect explosionVFX;
 
+    public Transform barrel;
+    public Transform barrel_Shoot;
+    public Transform barrel_Hook;
+    public Renderer handel;
+
+
+    float rotate_t = 0;
+
     void Awake()
     {
+        barrel.rotation = isShooting ? barrel_Shoot.rotation : barrel_Hook.rotation;
+
         GameObject canvas = GameObject.Find("Canvas");
         crosshairRI = canvas.transform.Find("CrosshairRI").GetComponent<RawImage>();
         crosshairGrabRI = canvas.transform.Find("CrosshairGrabRI").GetComponent<RawImage>();
@@ -197,8 +207,9 @@ public class PlayerMovement : MonoBehaviour
         hookLine_Aim.enabled = !isShooting;
         laserSight.enabled = isShooting;
         aimLight.enabled = isShooting;
-        shotgunRend.material.SetColor("_FresnelColour", isShooting ? shotgunColour_Shooting : shotgunColour_hook);
-
+        //shotgunRend.material.SetColor("_FresnelColour", isShooting ? shotgunColour_Shooting : shotgunColour_hook);
+        barrel.GetComponent<Renderer>().material.SetColor("_Tint", Color.Lerp(barrel.GetComponent<Renderer>().material.GetColor("_Tint"), 
+            isShooting ? shotgunColour_Shooting : shotgunColour_hook, Time.unscaledDeltaTime * 10f));
 
         Ray ray = Camera.main.ScreenPointToRay(mousePos);
         RaycastHit hit;
@@ -470,6 +481,16 @@ public class PlayerMovement : MonoBehaviour
                 camLookAt.rotation = camLookFWD.rotation;
             }
             isShooting = !isShooting;
+            rotate_t = 0.7f;
+        }
+
+        if(rotate_t > 0) {
+            rotate_t -= Time.unscaledDeltaTime;
+            if(rotate_t <= 0) {
+                barrel.rotation = isShooting ? barrel_Shoot.rotation : barrel_Hook.rotation;
+            } else {
+                barrel.rotation = Quaternion.RotateTowards(barrel.rotation, isShooting ? barrel_Shoot.rotation : barrel_Hook.rotation, Time.unscaledDeltaTime * 1469f);
+            }
         }
 
         if (Mouse.current.leftButton.wasReleasedThisFrame)
