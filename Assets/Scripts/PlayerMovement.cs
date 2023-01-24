@@ -165,7 +165,7 @@ public class PlayerMovement : MonoBehaviour
     void Update()
     {
         mousePos = Mouse.current.position.ReadValue();
-        crosshairRI.transform.position = mousePos;
+        crosshairRI.transform.position = Vector3.Lerp(crosshairRI.transform.position, mousePos, Time.deltaTime * 100);
 
         Yt = Mathf.Lerp(Yt, isShooting ? 0.5f : (mousePos.y / topLeftRI.transform.position.y), Time.unscaledDeltaTime * 75f);
         Xt = Mathf.Lerp(Xt, isShooting ? 0.5f : (mousePos.x / bottomRightRI.transform.position.x), Time.unscaledDeltaTime * 75f);
@@ -188,8 +188,10 @@ public class PlayerMovement : MonoBehaviour
             swingDelay -= Time.unscaledDeltaTime;
         }
 
-        float hookWidth = isSwinging ? 0.345f : 0.1f;
+        //float hookWidth = isSwinging ? 0.345f : 0.1f;
+        float hookWidth = isSwinging ? 0.45f : 0.31f;
         hookLine.widthMultiplier = currentGrab == null ? 0f : hookWidth;
+        hookLine.material.SetFloat("_Intensity", isSwinging ? 5f : 1f);
 
         //hookLine.enabled = !isShooting;
         hookLine_Aim.enabled = !isShooting;
@@ -221,6 +223,8 @@ public class PlayerMovement : MonoBehaviour
 
         if (currentGrab != null) {
             currentGrab.SendMessage("HoldingPlayer", SendMessageOptions.DontRequireReceiver);
+            hook.position = currentGrab.position + new Vector3(0, 0, -1.1f);
+
             //Debug.Log("Grabbed");
             grabStep_t += Time.deltaTime;
             Mathf.Clamp01(grabStep_t);
@@ -441,6 +445,7 @@ public class PlayerMovement : MonoBehaviour
                 swingOffset = Vector3.zero;
                 camLookAt.rotation = camLookFWD.rotation;
                 if(speedDist > 25) {
+                    hook.position = new Vector3(0, -100, 0);
                     currentGrab = null;
                 }
             }
@@ -491,12 +496,13 @@ public class PlayerMovement : MonoBehaviour
             hasShot = true;
             shootTime = 0.5f;
             viewAnim.Play("ViewShot");
-            explosionVFX.transform.position = aimLight.transform.position;
-            explosionVFX.Play();
+            
             if (isShooting) {
                 Vector3 dir = (aimLight.transform.position - player.position).normalized;
                 //shootAnim.TransformDirection(Vector3.back * 123);
                 rb.velocity += dir * -123;
+                explosionVFX.transform.position = aimLight.transform.position;
+                explosionVFX.Play();
             }
         }
 
@@ -567,7 +573,6 @@ public class PlayerMovement : MonoBehaviour
     }
 
     public void SetupHook() {
-        hook.position = currentGrab.position + new Vector3(0,0,-1.1f);
         hook.rotation = player.rotation;
         hook.localScale = Vector3.one * 1f;
     }
