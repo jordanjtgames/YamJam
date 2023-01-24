@@ -31,6 +31,7 @@ public class PlayerMovement : MonoBehaviour
     public RawImage topLeftRI;
     public RawImage bottomRightRI;
 
+    public float springRange = 4.5f;
     public float maxSpeed = 70;//50
     public float playerRange = 90;
     public float hookRange = 45;
@@ -412,9 +413,9 @@ public class PlayerMovement : MonoBehaviour
         if (isSwinging) {
             //Debug.Log("SWINGING");
             Vector3 tmpSwingOffset = (mousePos - swingStartPos) * 0.05f;//0.05f
-            float delta = 4.5f;//21
-            float xClamp = Mathf.Clamp(tmpSwingOffset.x,-delta, delta);
-            float yClamp = Mathf.Clamp(tmpSwingOffset.y, -delta, delta);
+            //springRange = 4.5f;//21
+            float xClamp = Mathf.Clamp(tmpSwingOffset.x,-springRange, springRange);
+            float yClamp = Mathf.Clamp(tmpSwingOffset.y, -springRange, springRange);
             swingOffset = new Vector3(xClamp, yClamp,0);
             camLookAt.transform.LookAt(currentGrab.position);
             needsToReleaseShoot = true;
