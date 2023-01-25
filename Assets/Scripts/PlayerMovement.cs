@@ -6,6 +6,7 @@ using UnityEngine.UI;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 using UnityEngine.VFX;
+using UnityEngine.Audio;
 
 
 public class PlayerMovement : MonoBehaviour
@@ -14,6 +15,9 @@ public class PlayerMovement : MonoBehaviour
 
     public Transform allGrabs;
     public List<Transform> grabPoints;
+    public List<Transform> allArt;
+    public List<Spider> allSpiders;
+    float spiderSplash = 12f;
 
     public Transform player;
     public Transform hook;
@@ -33,6 +37,7 @@ public class PlayerMovement : MonoBehaviour
     public RawImage topLeftRI;
     public RawImage bottomRightRI;
 
+    public int currentLevel = 1;
     public float springRange = 4.5f;
     public float maxSpeed = 70;//50
     public float playerRange = 90;
@@ -40,6 +45,7 @@ public class PlayerMovement : MonoBehaviour
     public float recoil = 123;
     public float singleShotTime = 1f;
     public float springJumpHeight = 45f;
+    public float musicVol = 0.15f;
 
     Vector3 targetHookPos;
 
@@ -155,8 +161,18 @@ public class PlayerMovement : MonoBehaviour
     public RawImage fadeToWhite;
     public bool goalReached = false;
 
+    public AudioSource music;
+    public AudioSource sfx;
+
+    public AudioClip music_A;
+    public AudioClip music_B;
+    public AudioMixer mixer;
+
+    public List<AudioClip> allSFX;
+
     void Awake()
     {
+        music.volume = 0;
         barrel.rotation = isShooting ? barrel_Shoot.rotation : barrel_Hook.rotation;
 
         GameObject canvas = GameObject.Find("Canvas");
@@ -178,15 +194,34 @@ public class PlayerMovement : MonoBehaviour
 
     private void Start() {
         GenerateGrabsList();
+        StartMusic();
+    }
+
+    void StartMusic() {
+        music.clip = currentLevel > 1 ? music_B : music_A;
+        music.Play();
+    }
+
+    void PlayOneShot(int id, float vol) {
+        sfx.PlayOneShot(allSFX[id], vol);
     }
 
     public void GenerateGrabsList() {
         grabPoints = new List<Transform>();
+        allSpiders = new List<Spider>();
         /*
         foreach (SphereCollider SC in allGrabs.GetComponentsInChildren<SphereCollider>()) {
             grabPoints.Add(SC.transform);
         }
         */
+        foreach (Spider Spd in GameObject.FindObjectsOfTypeAll(typeof(Spider))) {
+            if (Spd.isActiveAndEnabled) {
+                allSpiders.Add(Spd);
+            }
+        }
+
+
+
         foreach (ClimbingPoI PoI in GameObject.FindObjectsOfTypeAll(typeof(ClimbingPoI))) {
             if (PoI.isActiveAndEnabled) {
                 grabPoints.Add(PoI.transform);
@@ -199,6 +234,18 @@ public class PlayerMovement : MonoBehaviour
                     //Debug.LogError("PAIRED");
                 }
                 //Debug.Log(LC.gameObject.GetInstanceID());
+            }
+        }
+
+        foreach (Art artAsset in GameObject.FindObjectsOfTypeAll(typeof(Art))) {
+            if (artAsset.isActiveAndEnabled) {
+                allArt.Add(artAsset.transform);
+
+                RaycastHit artHit;
+                if (Physics.Raycast(artAsset.transform.position + new Vector3(0, 0, -10), Vector3.forward, out artHit, 90, PoIPairingMask)) {
+                    artAsset.transform.root.parent = artHit.collider.transform;
+                    Debug.Log(artHit.collider.transform);
+                }
             }
         }
 
@@ -236,6 +283,13 @@ public class PlayerMovement : MonoBehaviour
         if(swingDelay > 0) {
             swingDelay -= Time.unscaledDeltaTime;
         }
+
+        if (music.isPlaying)
+            music.volume = Mathf.Lerp(music.volume, musicVol, Time.deltaTime);
+
+        float currentShift = 1f;
+        mixer.GetFloat("PitchShift", out currentShift);
+        mixer.SetFloat("PitchShift", Mathf.Lerp(currentShift, slowMotion ? 0.25f : 1f, Time.unscaledDeltaTime * 1.5f));
 
         //float hookWidth = isSwinging ? 0.345f : 0.1f;
         float hookWidth = isSwinging ? 0.45f : 0.31f;
@@ -301,8 +355,14 @@ public class PlayerMovement : MonoBehaviour
                     shootHit.collider.transform.parent.parent.SendMessage("Shot", SendMessageOptions.DontRequireReceiver);
                 if (shootHit.collider.gameObject.name == "TurretCol")
                     shootHit.collider.transform.parent.SendMessage("Shot", SendMessageOptions.DontRequireReceiver);
-                if (shootHit.collider.gameObject.name == "SpiderCol")
+                if (shootHit.collider.gameObject.name == "SpiderCol") {
                     shootHit.collider.transform.parent.SendMessage("Shot", SendMessageOptions.DontRequireReceiver);
+
+                    for (int i = 0; i < allSpiders.Count; i++) {
+                        if (Vector3.Distance(allSpiders[i].transform.position, shootHit.point) < spiderSplash)
+                            allSpiders[i].Shot();
+                    }
+                }
             }
         }
         lookAtAim.LookAt(aimLight.transform.position);
@@ -618,6 +678,7 @@ public class PlayerMovement : MonoBehaviour
                 } else {
 
                 }
+                PlayOneShot(0, 1f);
                 if (ammo > 0)
                     ammo--;
                 
@@ -678,7 +739,7 @@ public class PlayerMovement : MonoBehaviour
         if (goalReached) {
             fadeToWhite.color = Color.Lerp(fadeToWhite.color, Color.white, Time.deltaTime * 5f);
             if(fadeToWhite.color.a > 0.99f) {
-                Debug.LogError("LEVEL COMPLETE");
+                //Finished Level
             }
         }
     }

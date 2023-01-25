@@ -20,6 +20,8 @@ public class ClimbingPoI : MonoBehaviour
     public bool blocked = false;
     float blocked_t = 0;
 
+    public float shrinkSpeed = 6f;
+
     //float shrink_t = 0;
 
     void Awake()
@@ -65,7 +67,7 @@ public class ClimbingPoI : MonoBehaviour
         }
 
         if (id == 2) {
-            transform.localScale = Vector3.MoveTowards(transform.localScale, startLocalScale * (holdingPlayer ? 0.01f : 1f), Time.deltaTime * 6f);
+            transform.localScale = Vector3.MoveTowards(transform.localScale, startLocalScale * (holdingPlayer ? 0.01f : 1f), Time.deltaTime * shrinkSpeed);
             if(holdingPlayer && transform.localScale.x < 0.35f) {
                 if (!kicked) {
                     GameObject.Find("_Player").GetComponent<PlayerMovement>().KickPlayer(Vector3.back);
@@ -89,8 +91,10 @@ public class ClimbingPoI : MonoBehaviour
         holdingPlayer = true;
         if (blocked) {
             blocked_t += Time.deltaTime;
-            if(blocked_t > 0.5f)
+            if (blocked_t > 0.5f) {
                 GameObject.Find("_Player").GetComponent<PlayerMovement>().KickPlayer(Vector3.back * 8);
+                GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayerHit();
+            }
         }
 
         if(id == 4) {
