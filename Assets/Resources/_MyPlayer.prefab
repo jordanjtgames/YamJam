@@ -879,12 +879,16 @@ MonoBehaviour:
   Rot_UD: {fileID: 7737112141960596006}
   crosshairRI: {fileID: 0}
   crosshairGrabRI: {fileID: 0}
+  crosshairSwingRI: {fileID: 0}
   topLeftRI: {fileID: 0}
   bottomRightRI: {fileID: 0}
   springRange: 4.5
   maxSpeed: 70
   playerRange: 90
   hookRange: 145
+  recoil: 123
+  singleShotTime: 1
+  springJumpHeight: 70
   tViz: {x: 0, y: 0}
   testRI: {fileID: 0}
   hook_A: {fileID: 7737112142615994554}
@@ -979,6 +983,14 @@ MonoBehaviour:
   PoIPairingMask:
     serializedVersion: 2
     m_Bits: 64
+  shootMask:
+    serializedVersion: 2
+    m_Bits: 128
+  worldMask:
+    serializedVersion: 2
+    m_Bits: 115
+  fadeToWhite: {fileID: 0}
+  goalReached: 0
 --- !u!135 &7737112142038261545
 SphereCollider:
   m_ObjectHideFlags: 0

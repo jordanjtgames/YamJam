@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class ClimbingPoI : MonoBehaviour
 {
-    public int id = 1; //1 = Tri
+    public int id = 1; //1 = Tri, 4 = Goal
 
     float hightlight = 0;
     bool highlighted = false;
@@ -91,6 +91,12 @@ public class ClimbingPoI : MonoBehaviour
             blocked_t += Time.deltaTime;
             if(blocked_t > 0.5f)
                 GameObject.Find("_Player").GetComponent<PlayerMovement>().KickPlayer(Vector3.back * 8);
+        }
+
+        if(id == 4) {
+            if (GameObject.Find("_Player").GetComponent<PlayerMovement>().goalReached == false) {
+                GameObject.Find("_Player").GetComponent<PlayerMovement>().goalReached = true;
+            }
         }
     }
 }

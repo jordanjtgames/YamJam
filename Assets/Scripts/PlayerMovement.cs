@@ -39,6 +39,7 @@ public class PlayerMovement : MonoBehaviour
     public float hookRange = 45;
     public float recoil = 123;
     public float singleShotTime = 1f;
+    public float springJumpHeight = 45f;
 
     Vector3 targetHookPos;
 
@@ -148,6 +149,12 @@ public class PlayerMovement : MonoBehaviour
 
     float vignetteIntensity = 0;
 
+    public LayerMask shootMask;
+    public LayerMask worldMask;
+
+    public RawImage fadeToWhite;
+    public bool goalReached = false;
+
     void Awake()
     {
         barrel.rotation = isShooting ? barrel_Shoot.rotation : barrel_Hook.rotation;
@@ -162,6 +169,7 @@ public class PlayerMovement : MonoBehaviour
         speedRI = canvas.transform.Find("SpeedRI").GetComponent<RawImage>();
         vignette = canvas.transform.Find("Vignette").GetComponent<RawImage>();
         postFX = GameObject.Find("PostFX").GetComponent<Volume>();
+        fadeToWhite = canvas.transform.Find("FadeToWhite").GetComponent<RawImage>();
 
         currentTint = normalTint;
         hookLine.positionCount = arcResolution;
@@ -266,17 +274,18 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-            Ray ray = Camera.main.ScreenPointToRay(mousePos);
-        RaycastHit hit;
+        Ray ray = Camera.main.ScreenPointToRay(mousePos);
+        RaycastHit worldHit;
+        RaycastHit shootHit;
         bool hitPoI = false;
-        if (Physics.Raycast(ray, out hit, 100)) {
-            aimLight.transform.position = hit.point + (player.position - hit.point).normalized;
+        if (Physics.Raycast(ray, out worldHit, 100, worldMask)) {
+            aimLight.transform.position = worldHit.point + (player.position - worldHit.point).normalized;
             if (Mouse.current.leftButton.ReadValue() == 0) {
-                if (hit.transform.GetComponentsInChildren<ClimbingPoI>() != null) {
-                    foreach (ClimbingPoI CPOI in hit.transform.GetComponentsInChildren<ClimbingPoI>()) {
+                if (worldHit.transform.GetComponentsInChildren<ClimbingPoI>() != null) {
+                    foreach (ClimbingPoI CPOI in worldHit.transform.GetComponentsInChildren<ClimbingPoI>()) {
                         if (Vector3.Distance(player.position, CPOI.transform.position) < playerRange) {
                             currentHitPoI = CPOI.transform;
-                            hit.collider.SendMessage("Highlighted", SendMessageOptions.DontRequireReceiver);
+                            worldHit.collider.SendMessage("Highlighted", SendMessageOptions.DontRequireReceiver);
                             hitPoI = true;
                         }
                     }
@@ -284,9 +293,16 @@ public class PlayerMovement : MonoBehaviour
                     currentHitPoI = null;
                 }   
             }
-            if (isShooting && ammo > 0 && hit.collider.tag == "Enemy" && Mouse.current.leftButton.wasPressedThisFrame) {
-                if (hit.collider.gameObject.name == "DroneCol")
-                    hit.collider.transform.parent.parent.SendMessage("Shot");
+            
+        }
+        if (Physics.Raycast(ray, out shootHit, 100, shootMask)) {
+            if (isShooting && ammo > 0 && shootHit.collider.tag == "Enemy" && Mouse.current.leftButton.wasPressedThisFrame) {
+                if (shootHit.collider.gameObject.name == "DroneCol")
+                    shootHit.collider.transform.parent.parent.SendMessage("Shot", SendMessageOptions.DontRequireReceiver);
+                if (shootHit.collider.gameObject.name == "TurretCol")
+                    shootHit.collider.transform.parent.SendMessage("Shot", SendMessageOptions.DontRequireReceiver);
+                if (shootHit.collider.gameObject.name == "SpiderCol")
+                    shootHit.collider.transform.parent.SendMessage("Shot", SendMessageOptions.DontRequireReceiver);
             }
         }
         lookAtAim.LookAt(aimLight.transform.position);
@@ -515,13 +531,18 @@ public class PlayerMovement : MonoBehaviour
             needsToReleaseShoot = true;
 
             if (Mouse.current.leftButton.ReadValue() == 0) {
+
                 isSwinging = false;
-                swingOffset = Vector3.zero;
                 camLookAt.rotation = camLookFWD.rotation;
-                if(speedDist > 25) {
+                if(speedDist > 25 || swingOffset.y < -5) {
                     hook.position = new Vector3(0, -100, 0);
                     currentGrab = null;
+                    if (swingOffset.y < -5) {
+                        rb.velocity = new Vector3(swingOffset.x * -2.5f, springJumpHeight, 0);
+                        Debug.Log("ThrowPlayer");
+                    }
                 }
+                swingOffset = Vector3.zero;
             }
 
         } else {
@@ -653,6 +674,13 @@ public class PlayerMovement : MonoBehaviour
     private void LateUpdate() {
         speedRI.transform.position = Vector3.MoveTowards(speedRI.transform.position, mousePos, Time.deltaTime * 1730f);
         speedDist = Vector2.Distance(mousePos, speedRI.transform.position);
+
+        if (goalReached) {
+            fadeToWhite.color = Color.Lerp(fadeToWhite.color, Color.white, Time.deltaTime * 5f);
+            if(fadeToWhite.color.a > 0.99f) {
+                Debug.LogError("LEVEL COMPLETE");
+            }
+        }
     }
 
     private void FixedUpdate() {

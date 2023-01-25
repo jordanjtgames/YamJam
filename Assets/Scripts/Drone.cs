@@ -46,6 +46,8 @@ public class Drone : MonoBehaviour
     public GameObject projectilePrefab;
     public Transform projectilePos;
 
+    public Renderer droneRend;
+
     void Start()
     {
         projectilePrefab = Resources.Load("Projectile") as GameObject;
@@ -61,6 +63,7 @@ public class Drone : MonoBehaviour
         playerDetected = Vector3.Distance(Camera.main.transform.position, drone.position) < detectRange;
         droneLookAt.position = drone.position;
         warningLook.position = drone.position + new Vector3(0, 5, -1);
+        droneRend.material.SetColor("_FresnelColour", Color.Lerp(droneRend.material.GetColor("_FresnelColour"), playerDetected ? Color.red : Color.clear, Time.deltaTime * 4f));
 
         if (playerDetected) {
             droneLookAt.LookAt(Camera.main.transform.position);
