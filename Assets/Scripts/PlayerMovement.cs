@@ -176,6 +176,14 @@ public class PlayerMovement : MonoBehaviour
     float listsTimer = 0.4f;
     bool setupLists = false;
 
+    public Transform crosshairHookRot;
+    public Transform crosshairShootRot;
+    public RawImage shotgunCrosshairRI;
+
+    bool paused = false;
+    public Transform pausedCamPos;
+    public Transform unpausedCamPos;
+    public GameObject pauseMenuGO;
     void Awake()
     {
         music.volume = 0;
@@ -184,7 +192,10 @@ public class PlayerMovement : MonoBehaviour
         GameObject canvas = GameObject.Find("Canvas");
         crosshairRI = canvas.transform.Find("CrosshairRI").GetComponent<RawImage>();
         crosshairGrabRI = canvas.transform.Find("CrosshairGrabRI").GetComponent<RawImage>();
+        crosshairHookRot = canvas.transform.Find("HookRot");
+        crosshairShootRot = canvas.transform.Find("ShootRot");
         crosshairSwingRI = crosshairGrabRI.transform.GetChild(0).GetComponent<RawImage>();
+        shotgunCrosshairRI = canvas.transform.Find("CrosshairShotgunRI").GetComponent<RawImage>();
         topLeftRI = canvas.transform.Find("TopLeft").GetComponent<RawImage>();
         bottomRightRI = canvas.transform.Find("BottomRight").GetComponent<RawImage>();
         testRI = canvas.transform.Find("TestRI").GetComponent<RawImage>();
@@ -310,19 +321,24 @@ public class PlayerMovement : MonoBehaviour
     void HandleInput()
     {
         mousePos = Mouse.current.position.ReadValue();
+        crosshairRI.enabled = !paused;
         crosshairRI.transform.position = Vector3.Lerp(crosshairRI.transform.position, mousePos, Time.deltaTime * 100);
-        crosshairSwingRI.enabled = isSwinging;
+        crosshairSwingRI.enabled = isSwinging && !paused;
+        crosshairRI.transform.rotation = Quaternion.RotateTowards(crosshairRI.transform.rotation, isShooting ? crosshairShootRot.rotation : crosshairHookRot.rotation, Time.unscaledDeltaTime * 586f);
+        shotgunCrosshairRI.enabled = isShooting && !paused;
+        shotgunCrosshairRI.transform.position = crosshairRI.transform.position;
 
-        Yt = Mathf.Lerp(Yt, isShooting ? 0.5f : (mousePos.y / topLeftRI.transform.position.y), Time.unscaledDeltaTime * 75f);
-        Xt = Mathf.Lerp(Xt, isShooting ? 0.5f : (mousePos.x / bottomRightRI.transform.position.x), Time.unscaledDeltaTime * 75f);
+        bool centerGun = isShooting || paused;
+        Yt = Mathf.Lerp(Yt, centerGun ? 0.5f : (mousePos.y / topLeftRI.transform.position.y), Time.unscaledDeltaTime * 75f);
+        Xt = Mathf.Lerp(Xt, centerGun ? 0.5f : (mousePos.x / bottomRightRI.transform.position.x), Time.unscaledDeltaTime * 75f);
 
         Quaternion UD = Quaternion.Lerp(Rot_U.localRotation, Rot_D.localRotation, 1f-Yt);
         Quaternion LR = Quaternion.Lerp(Rot_L.localRotation, Rot_R.localRotation, Xt);
 
         if (isShooting)
-            Rot_LR.rotation = Quaternion.Lerp(Rot_LR.rotation, lookAtAim.rotation, Time.deltaTime * 8f);
+            Rot_LR.rotation = Quaternion.Lerp(Rot_LR.rotation, lookAtAim.rotation, Time.unscaledDeltaTime * 8f);
         else
-            Rot_LR.localRotation = Quaternion.Lerp(Rot_LR.localRotation, LR, Time.deltaTime * 8f);
+            Rot_LR.localRotation = Quaternion.Lerp(Rot_LR.localRotation, LR, Time.unscaledDeltaTime * 8f);
         //Rot_LR.localRotation = LR;
         Rot_UD.localRotation = UD;
 
@@ -351,11 +367,21 @@ public class PlayerMovement : MonoBehaviour
             damageCooldown -= Time.deltaTime;
         else
             damageCooldown = 0;
-        Debug.Log(playerHealth);
 
         float currentShift = 1f;
         mixer.GetFloat("PitchShift", out currentShift);
         mixer.SetFloat("PitchShift", Mathf.Lerp(currentShift, slowMotion ? 0.25f : 1f, Time.unscaledDeltaTime * 1.5f));
+
+        if (Keyboard.current.escapeKey.wasPressedThisFrame || Keyboard.current.digit2Key.wasPressedThisFrame ||
+            Keyboard.current.digit1Key.wasPressedThisFrame) {
+            paused = !paused;
+            pauseMenuGO.SetActive(paused);
+            if (paused) {
+                isShooting = false;
+            } else {
+
+            }
+        }
 
         //float hookWidth = isSwinging ? 0.345f : 0.1f;
         float hookWidth = isSwinging ? 0.45f : 0.31f;
@@ -463,7 +489,11 @@ public class PlayerMovement : MonoBehaviour
             crosshairGrabRI.enabled = true;
             crosshairGrabRI.transform.position = Camera.main.WorldToScreenPoint(currentGrab.transform.position);
 
-            player.rotation = Quaternion.Lerp(player.rotation, lookUp.rotation, Time.smoothDeltaTime * 5f);
+            if (paused) {
+                player.rotation = Quaternion.Lerp(player.rotation, lookFWD.rotation, Time.unscaledDeltaTime * 5f);
+            } else {
+                player.rotation = Quaternion.Lerp(player.rotation, lookUp.rotation, Time.smoothDeltaTime * 5f);
+            }
 
             rb.drag = Mathf.Lerp(25,0,Mathf.Clamp01(dist * 0.5f));
             rb.useGravity = false;
@@ -474,9 +504,14 @@ public class PlayerMovement : MonoBehaviour
             rb.drag = 0;
             rb.useGravity = true;
 
-            player.rotation = Quaternion.Lerp(player.rotation, lookFWD.rotation, Time.smoothDeltaTime * 5f);
 
-            if(rb.velocity.magnitude > maxSpeed) {
+            if (paused) {
+                player.rotation = Quaternion.Lerp(player.rotation, lookFWD.rotation, Time.unscaledDeltaTime * 5f);
+            } else {
+                player.rotation = Quaternion.Lerp(player.rotation, lookFWD.rotation, Time.smoothDeltaTime * 5f);
+            }
+
+            if (rb.velocity.magnitude > maxSpeed) {
                 rb.velocity = Vector3.ClampMagnitude(rb.velocity, maxSpeed);
             }
 
@@ -491,7 +526,7 @@ public class PlayerMovement : MonoBehaviour
 
         bool hitSomething = false;
 
-        if (grabPoints != null) {
+        if (grabPoints != null && !paused) {
             if(currentHitPoI != null) {
                 Vector3 currentHookPos = currentHitPoI.position;
                 Vector2 currentHookScreenPos = Camera.main.WorldToScreenPoint(currentHookPos);
@@ -605,7 +640,7 @@ public class PlayerMovement : MonoBehaviour
             
         }
 
-        if (!hitSomething && currentGrab != null && !needsToReleaseShoot && Mouse.current.leftButton.ReadValue() == 1) {
+        if (!hitSomething && currentGrab != null && !needsToReleaseShoot && Mouse.current.leftButton.ReadValue() == 1 && !paused) {
             if (!isSwinging && !isShooting) {
                 if (swingDelay <= 0) {
                     swingStartPos = mousePos;
@@ -628,17 +663,20 @@ public class PlayerMovement : MonoBehaviour
 
 
 
-        float swayRange = rb.velocity.magnitude < 10 ? 0f : 0.5f;//.85f
-        swayX = Mathf.Lerp(swayX, (rb.velocity.x > 4.5f || rb.velocity.x < -4.5f) ? (swayRange * (rb.velocity.x > 4.5f ? 1 : -1)) : 0, Time.deltaTime * 4.5f);
-        swayY = Mathf.Lerp(swayY, (rb.velocity.y > 4.5f || rb.velocity.y < -4.5f) ? (swayRange * (rb.velocity.y > 4.5f ? 1 : -1)) : 0, Time.deltaTime * 4.5f);
+        float swayRange = (rb.velocity.magnitude < 10 ? 0f : 0.5f) * (paused ? 0 : 1f);//.85f
+        swayX = Mathf.Lerp(swayX, (rb.velocity.x > 4.5f || rb.velocity.x < -4.5f) ? (swayRange * (rb.velocity.x > 4.5f ? 1 : -1)) : 0, Time.unscaledDeltaTime * 4.5f);
+        swayY = Mathf.Lerp(swayY, (rb.velocity.y > 4.5f || rb.velocity.y < -4.5f) ? (swayRange * (rb.velocity.y > 4.5f ? 1 : -1)) : 0, Time.unscaledDeltaTime * 4.5f);
 
-        gunFWD.localPosition = Vector3.Lerp(gunFWD.localPosition, isSwinging ? new Vector3(swayX, swayY, -3.54f) : new Vector3(swayX, swayY, -2.06f), Time.deltaTime * 4f);
-        Camera.main.fieldOfView = Mathf.Lerp(Camera.main.fieldOfView, isSwinging ? 70 : 80, Time.deltaTime * 5f);
+        gunFWD.localPosition = Vector3.Lerp(gunFWD.localPosition, isSwinging ? new Vector3(swayX, swayY, -3.54f) : new Vector3(swayX, swayY, -2.06f), Time.unscaledDeltaTime * 4f);
+        if(paused)
+            Camera.main.fieldOfView = Mathf.Lerp(Camera.main.fieldOfView, 40, Time.unscaledDeltaTime* 5f);
+        else
+            Camera.main.fieldOfView = Mathf.Lerp(Camera.main.fieldOfView, isSwinging ? 70 : 80, Time.deltaTime * 5f);
         //camLook.rotation = Quaternion.Lerp(camLook.rotation, isSwinging ? camLookAt.rotation : camLookFWD.rotation, Time.deltaTime * 3.5f);
         vignette.color = Color.Lerp(vignette.color, isSwinging ? new Color(0, 0, 0, 1) : new Color(0, 0, 0, 0), Time.deltaTime * 3.4f);
 
-        if(rb.velocity.magnitude < 23) {
-            camTilt.localRotation = Quaternion.Lerp(camTilt.localRotation, camTilt_None.localRotation, Time.deltaTime * 2f);
+        if(rb.velocity.magnitude < 23 || paused) {
+            camTilt.localRotation = Quaternion.Lerp(camTilt.localRotation, camTilt_None.localRotation, (paused ? Time.unscaledDeltaTime : Time.deltaTime) * 2f);
         } else {
             if(rb.velocity.x < -4.5f)
                 camTilt.localRotation = Quaternion.Lerp(camTilt.localRotation, camTilt_L.localRotation, Time.deltaTime * 2f);
@@ -685,8 +723,7 @@ public class PlayerMovement : MonoBehaviour
             //slowMotion = !slowMotion;
         }
         slowMotion = isShooting;
-        if (Keyboard.current.digit2Key.wasPressedThisFrame ||
-            Keyboard.current.digit1Key.wasPressedThisFrame || Mouse.current.rightButton.wasPressedThisFrame) {
+        if (Mouse.current.rightButton.wasPressedThisFrame) {
             if (isSwinging) {
                 isSwinging = false;
                 swingOffset = Vector3.zero;
@@ -714,7 +751,14 @@ public class PlayerMovement : MonoBehaviour
         currentSat = Mathf.Lerp(currentChromAb, slowMotion ? 51f : 0, Time.deltaTime * 5f);
 
         float slowMoTimescale = 0.5f;
-        Time.timeScale = Mathf.Lerp(Time.timeScale, slowMotion ? slowMoTimescale : 1f, Time.deltaTime * 4);
+        if (paused) {
+            Time.timeScale = 0;
+            //viewAnim.enabled = false;
+        } else {
+            Time.timeScale = Mathf.Lerp(Time.timeScale, slowMotion ? slowMoTimescale : 1f, Time.unscaledDeltaTime * 4);
+        }
+        Camera.main.transform.localPosition = Vector3.Lerp(Camera.main.transform.localPosition, paused ? pausedCamPos.localPosition : unpausedCamPos.localPosition, Time.unscaledDeltaTime * 4);
+        Camera.main.transform.localRotation = Quaternion.Lerp(Camera.main.transform.localRotation, paused ? pausedCamPos.localRotation : unpausedCamPos.localRotation, Time.unscaledDeltaTime * 4);
         //Time.fixedTime = Mathf.Lerp(Time.timeScale, slowMotion ? 1f : 0.1f, Time.deltaTime * 4);
         Time.fixedDeltaTime = Time.timeScale * 0.02f;
 
@@ -730,7 +774,7 @@ public class PlayerMovement : MonoBehaviour
         vignetteIntensity = Mathf.Lerp(vignetteIntensity, dead ? 1f : 0f, Time.unscaledDeltaTime * 2.5f);
 
 
-        if (Mouse.current.leftButton.wasPressedThisFrame && !hasShot && !needsToReleaseShoot && !reloading && ammo > 0) {
+        if (Mouse.current.leftButton.wasPressedThisFrame && !hasShot && !needsToReleaseShoot && !reloading && ammo > 0 && !paused) {
             hasShot = true;
             shootTime = 0.5f;
             viewAnim.Play("ViewShot");
@@ -756,28 +800,31 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-        if (hasShot) {
+        if (hasShot && !paused) {
             shootTime -= Time.deltaTime * singleShotTime;
-            if(shootTime <= 0) {
+            Debug.Log("Shooting");
+
+            if (shootTime <= 0) {
                 shootTime = 0;
                 viewAnim.Play("ViewIdle");
                 hasShot = false;
             }
+            float deltaT = paused ? Time.unscaledDeltaTime : Time.deltaTime;
             if (shootTime > 0.45f) {
-                shootAnim.localPosition = Vector3.Lerp(shootAnim.localPosition, shootPos.localPosition, Time.deltaTime * 50f);
-                shootAnim.localRotation = Quaternion.Lerp(shootAnim.localRotation, shootPos.localRotation, Time.deltaTime * 50f);
+                shootAnim.localPosition = Vector3.Lerp(shootAnim.localPosition, shootPos.localPosition, deltaT * 50f);
+                shootAnim.localRotation = Quaternion.Lerp(shootAnim.localRotation, shootPos.localRotation, deltaT * 50f);
             } else {
-                shootAnim.localPosition = Vector3.Lerp(shootAnim.localPosition, idlePos.localPosition, Time.deltaTime * 10f);
-                shootAnim.localRotation = Quaternion.Lerp(shootAnim.localRotation, idlePos.localRotation, Time.deltaTime * 10f);
+                shootAnim.localPosition = Vector3.Lerp(shootAnim.localPosition, idlePos.localPosition, deltaT * 10f);
+                shootAnim.localRotation = Quaternion.Lerp(shootAnim.localRotation, idlePos.localRotation, deltaT * 10f);
             }
         } else if(!reloading) {
             shootAnim.localPosition = Vector3.Lerp(shootAnim.localPosition, idlePos.localPosition, Time.deltaTime * 10f);
             shootAnim.localRotation = Quaternion.Lerp(shootAnim.localRotation, idlePos.localRotation, Time.deltaTime * 10f);
         }
 
-        if (reloading) {
+        if (reloading && !paused) {
             reload_t += Time.unscaledDeltaTime;
-            
+
             if (reload_t < 0.35f)
                 shootAnim.localPosition = Vector3.Lerp(shootAnim.localPosition, reloadPos.localPosition, Time.unscaledDeltaTime * 7.55f);
             else

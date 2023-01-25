@@ -53,7 +53,7 @@ public class EnvironmentScript : MonoBehaviour
                 //allCells[i].position = 
                 bool glow = !inRange && playedBuildSound[i] == false;
                 allCells[i].GetComponent<Renderer>().material.SetFloat("_FresnelIntensity",
-                    Mathf.Lerp(allCells[i].GetComponent<Renderer>().material.GetFloat("_FresnelIntensity"), glow ? 0f : 55f, Time.deltaTime * 6f));
+                    Mathf.Lerp(allCells[i].GetComponent<Renderer>().material.GetFloat("_FresnelIntensity"), glow ? 55f : 0f, Time.deltaTime * 6f));
 
                 if(Vector3.Distance(targetPositions[i], allCells[i].position) < 1 && playedBuildSound[i] == false) {
                     GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayOneShot(Random.Range(1,4), 0.1575f);
