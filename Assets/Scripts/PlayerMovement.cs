@@ -169,6 +169,9 @@ public class PlayerMovement : MonoBehaviour
     public AudioMixer mixer;
 
     public List<AudioClip> allSFX;
+    float playerHealth = 100f;
+    bool dead = false;
+    float damageCooldown = 0;
 
     void Awake()
     {
@@ -202,7 +205,7 @@ public class PlayerMovement : MonoBehaviour
         music.Play();
     }
 
-    void PlayOneShot(int id, float vol) {
+    public void PlayOneShot(int id, float vol) {
         sfx.PlayOneShot(allSFX[id], vol);
     }
 
@@ -214,12 +217,42 @@ public class PlayerMovement : MonoBehaviour
             grabPoints.Add(SC.transform);
         }
         */
+
+        //SPIDER
         foreach (Spider Spd in GameObject.FindObjectsOfTypeAll(typeof(Spider))) {
             if (Spd.isActiveAndEnabled) {
                 allSpiders.Add(Spd);
+
+                RaycastHit spiderHit;
+                if (Physics.Raycast(Spd.transform.position + new Vector3(0, 0, -10), Vector3.forward, out spiderHit, 90, PoIPairingMask)) {
+                    Spd.transform.root.parent = spiderHit.collider.transform;
+                    //GameObject.CreatePrimitive(PrimitiveType.Sphere).transform.position = PoI.transform.position;
+                    //Debug.LogError("PAIRED");
+                }
             }
         }
-
+        //DRONE
+        foreach (Drone Drn in GameObject.FindObjectsOfTypeAll(typeof(Drone))) {
+            if (Drn.isActiveAndEnabled) {
+                RaycastHit droneHit;
+                if (Physics.Raycast(Drn.transform.Find("A").position + new Vector3(0, 0, -10), Vector3.forward, out droneHit, 90, PoIPairingMask)) {
+                    Drn.transform.root.parent = droneHit.collider.transform;
+                    //GameObject.CreatePrimitive(PrimitiveType.Sphere).transform.position = PoI.transform.position;
+                    //Debug.LogError("PAIRED");
+                }
+            }
+        }
+        //Turret
+        foreach (Turret Trt in GameObject.FindObjectsOfTypeAll(typeof(Turret))) {
+            if (Trt.isActiveAndEnabled) {
+                RaycastHit turretHit;
+                if (Physics.Raycast(Trt.transform.Find("A").position + new Vector3(0, 0, -10), Vector3.forward, out turretHit, 90, PoIPairingMask)) {
+                    Trt.transform.root.parent = turretHit.collider.transform;
+                    //GameObject.CreatePrimitive(PrimitiveType.Sphere).transform.position = PoI.transform.position;
+                    //Debug.LogError("PAIRED");
+                }
+            }
+        }
 
 
         foreach (ClimbingPoI PoI in GameObject.FindObjectsOfTypeAll(typeof(ClimbingPoI))) {
@@ -285,7 +318,23 @@ public class PlayerMovement : MonoBehaviour
         }
 
         if (music.isPlaying)
-            music.volume = Mathf.Lerp(music.volume, musicVol, Time.deltaTime);
+            music.volume = Mathf.Lerp(music.volume, goalReached ? 0f : musicVol, Time.deltaTime);
+
+        if (playerHealth < 100 && !dead)
+            playerHealth += Time.deltaTime * 10;
+        else
+            playerHealth = 100;
+        if (playerHealth <= 0 && !dead) {
+            PlayOneShot(4, 0.7f);
+            Debug.LogError("DEAD");
+            KickPlayer(Vector3.back * 5f);
+            dead = true;
+        }
+        if (damageCooldown > 0)
+            damageCooldown -= Time.deltaTime;
+        else
+            damageCooldown = 0;
+        Debug.Log(playerHealth);
 
         float currentShift = 1f;
         mixer.GetFloat("PitchShift", out currentShift);
@@ -356,11 +405,11 @@ public class PlayerMovement : MonoBehaviour
                 if (shootHit.collider.gameObject.name == "TurretCol")
                     shootHit.collider.transform.parent.SendMessage("Shot", SendMessageOptions.DontRequireReceiver);
                 if (shootHit.collider.gameObject.name == "SpiderCol") {
-                    shootHit.collider.transform.parent.SendMessage("Shot", SendMessageOptions.DontRequireReceiver);
+                    shootHit.collider.transform.parent.SendMessage("Shot", true, SendMessageOptions.DontRequireReceiver);
 
                     for (int i = 0; i < allSpiders.Count; i++) {
                         if (Vector3.Distance(allSpiders[i].transform.position, shootHit.point) < spiderSplash)
-                            allSpiders[i].Shot();
+                            allSpiders[i].Shot(false);
                     }
                 }
             }
@@ -369,7 +418,6 @@ public class PlayerMovement : MonoBehaviour
 
         if (currentGrab != null) {
             currentGrab.SendMessage("HoldingPlayer", SendMessageOptions.DontRequireReceiver);
-            hook.position = currentGrab.position + new Vector3(0, 0, -1.1f);
 
             //Debug.Log("Grabbed");
             grabStep_t += Time.deltaTime;
@@ -402,6 +450,8 @@ public class PlayerMovement : MonoBehaviour
 
             rb.drag = Mathf.Lerp(25,0,Mathf.Clamp01(dist * 0.5f));
             rb.useGravity = false;
+            hook.position = currentGrab.position + new Vector3(0, 0, -1.1f);
+
         } else {
             crosshairGrabRI.enabled = false;
             rb.drag = 0;
@@ -596,10 +646,11 @@ public class PlayerMovement : MonoBehaviour
                 camLookAt.rotation = camLookFWD.rotation;
                 if(speedDist > 25 || swingOffset.y < -5) {
                     hook.position = new Vector3(0, -100, 0);
+                    PlayOneShot(15, 0.6f);
                     currentGrab = null;
                     if (swingOffset.y < -5) {
                         rb.velocity = new Vector3(swingOffset.x * -2.5f, springJumpHeight, 0);
-                        Debug.Log("ThrowPlayer");
+                        //Debug.Log("ThrowPlayer");
                     }
                 }
                 swingOffset = Vector3.zero;
@@ -624,6 +675,7 @@ public class PlayerMovement : MonoBehaviour
                 swingOffset = Vector3.zero;
                 camLookAt.rotation = camLookFWD.rotation;
             }
+            PlayOneShot(14, 0.139f);
             isShooting = !isShooting;
             rotate_t = 0.7f;
         }
@@ -658,7 +710,7 @@ public class PlayerMovement : MonoBehaviour
         colAdj.colorFilter.value = currentTint;
         postFX.profile.TryGet(out Vignette vig);
         vig.intensity.value = vignetteIntensity;
-        vignetteIntensity = Mathf.Lerp(vignetteIntensity, 0f, Time.unscaledDeltaTime * 2.5f);
+        vignetteIntensity = Mathf.Lerp(vignetteIntensity, dead ? 1f : 0f, Time.unscaledDeltaTime * 2.5f);
 
 
         if (Mouse.current.leftButton.wasPressedThisFrame && !hasShot && !needsToReleaseShoot && !reloading && ammo > 0) {
@@ -679,6 +731,7 @@ public class PlayerMovement : MonoBehaviour
 
                 }
                 PlayOneShot(0, 1f);
+                PlayOneShot(8, 0.3f);
                 if (ammo > 0)
                     ammo--;
                 
@@ -765,6 +818,7 @@ public class PlayerMovement : MonoBehaviour
         if (currentGrab != null) {
             hookVFX.transform.position = currentGrab.transform.position;
             hookVFX.Play();
+            PlayOneShot(9, 0.24f);//0.33f
         }
     }
 
@@ -782,8 +836,11 @@ public class PlayerMovement : MonoBehaviour
     }
 
     public void PlayerHit() {
-        Debug.Log("Player Was Hit");
+        PlayOneShot(12, 0.49f);
         vignetteIntensity = 0.75f;
+        if(damageCooldown <= 0)
+            playerHealth -= 50f;
+        damageCooldown = 1f;
     }
 
     Vector3 QuadCurve(Vector3 start, Vector3 mid, Vector3 end, float t) {

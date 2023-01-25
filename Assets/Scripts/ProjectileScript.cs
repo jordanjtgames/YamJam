@@ -5,6 +5,7 @@ using UnityEngine;
 public class ProjectileScript : MonoBehaviour
 {
     public Transform playerPos;
+    bool playedAudio = false;
     public float speed = 15f;
 
     float lifeTime = 10;
@@ -28,6 +29,11 @@ public class ProjectileScript : MonoBehaviour
             }
 
             transform.Translate(moveDir * Time.deltaTime * speed);
+
+            if (!playedAudio) {
+                playerPos.GetComponent<PlayerMovement>().PlayOneShot(5, 0.7f);
+                playedAudio = true;
+            }
         }
 
         lifeTime -= Time.deltaTime;

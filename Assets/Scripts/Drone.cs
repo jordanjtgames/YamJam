@@ -48,6 +48,8 @@ public class Drone : MonoBehaviour
 
     public Renderer droneRend;
 
+    bool spottedSound = false;
+
     void Start()
     {
         projectilePrefab = Resources.Load("Projectile") as GameObject;
@@ -61,6 +63,12 @@ public class Drone : MonoBehaviour
         //hover.transform.localPosition = hoverOffset;
 
         playerDetected = Vector3.Distance(Camera.main.transform.position, drone.position) < detectRange;
+        if (!spottedSound && playerDetected && !dead) {
+            GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayOneShot(6, 0.268f);
+            spottedSound = true;
+        }
+        if (!playerDetected)
+            spottedSound = false;
         droneLookAt.position = drone.position;
         warningLook.position = drone.position + new Vector3(0, 5, -1);
         droneRend.material.SetColor("_FresnelColour", Color.Lerp(droneRend.material.GetColor("_FresnelColour"), playerDetected ? Color.red : Color.clear, Time.deltaTime * 4f));
@@ -76,7 +84,7 @@ public class Drone : MonoBehaviour
 
 
 
-        if (Vector3.Distance(drone.localPosition, targetPos) < 0.1f) {
+        if (Vector3.Distance(drone.localPosition, targetPos) < 0.21f) {
             t = pauseDelay;
             waiting = true;
             moveToA = !moveToA;
@@ -137,6 +145,7 @@ public class Drone : MonoBehaviour
 
     public void Shot() {
         //Debug.LogError("GotShot");
+        GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayOneShot(7, 0.4f);
         dead = true;
         drone.gameObject.SetActive(false);
         Halo_A.gameObject.SetActive(false);

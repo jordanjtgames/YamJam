@@ -9,6 +9,7 @@ public class EnvironmentScript : MonoBehaviour
     public List<Vector3> farPositions;
     bool setup = false;
     bool check = false;
+    public List<bool> playedBuildSound;
 
     void Awake()
     {
@@ -19,6 +20,7 @@ public class EnvironmentScript : MonoBehaviour
         allCells = new List<Transform>();
         targetPositions = new List<Vector3>();
         farPositions = new List<Vector3>();
+        playedBuildSound = new List<bool>();
 
         foreach (SkinnedMeshRenderer MC in GetComponentsInChildren<SkinnedMeshRenderer>()) {
             allCells.Add(MC.transform);
@@ -28,6 +30,7 @@ public class EnvironmentScript : MonoBehaviour
             float randZ = Random.Range(90, 390);
             Vector3 farPos = new Vector3(randX * (LorR > 0.5f ? 1 : -1), Random.Range(-20, 120), randZ);
             farPositions.Add(farPos);
+            playedBuildSound.Add(false);
 
             //MC.transform.position = farPos;
         }
@@ -49,6 +52,14 @@ public class EnvironmentScript : MonoBehaviour
                 //allCells[i].position = 
                 allCells[i].GetComponent<Renderer>().material.SetFloat("_FresnelIntensity",
                     Mathf.Lerp(allCells[i].GetComponent<Renderer>().material.GetFloat("_FresnelIntensity"), inRange ? 0f : 55f, Time.deltaTime * 6f));
+
+                if(Vector3.Distance(targetPositions[i], allCells[i].position) < 1 && playedBuildSound[i] == false) {
+                    GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayOneShot(Random.Range(1,4), 0.1575f);
+                    playedBuildSound[i] = true;
+                }
+                if (Vector3.Distance(farPositions[i], allCells[i].position) < 1 && playedBuildSound[i] == true) {
+                    playedBuildSound[i] = false;
+                }
             }
         }
     }

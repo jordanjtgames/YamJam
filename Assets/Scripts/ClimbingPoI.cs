@@ -71,6 +71,7 @@ public class ClimbingPoI : MonoBehaviour
             if(holdingPlayer && transform.localScale.x < 0.35f) {
                 if (!kicked) {
                     GameObject.Find("_Player").GetComponent<PlayerMovement>().KickPlayer(Vector3.back);
+                    GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayOneShot(10, 0.67f);
                     kicked = true;
                 }
             }
@@ -93,12 +94,14 @@ public class ClimbingPoI : MonoBehaviour
             blocked_t += Time.deltaTime;
             if (blocked_t > 0.5f) {
                 GameObject.Find("_Player").GetComponent<PlayerMovement>().KickPlayer(Vector3.back * 8);
+                GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayOneShot(10, 0.67f);
                 GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayerHit();
             }
         }
 
         if(id == 4) {
             if (GameObject.Find("_Player").GetComponent<PlayerMovement>().goalReached == false) {
+                GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayOneShot(11, 0.9f);
                 GameObject.Find("_Player").GetComponent<PlayerMovement>().goalReached = true;
             }
         }

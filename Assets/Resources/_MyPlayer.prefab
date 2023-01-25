@@ -1149,7 +1149,7 @@ MonoBehaviour:
   recoil: 123
   singleShotTime: 1
   springJumpHeight: 70
-  musicVol: 0.075
+  musicVol: 0.039
   tViz: {x: 0, y: 0}
   testRI: {fileID: 0}
   hook_A: {fileID: 7737112142615994554}
@@ -1273,6 +1273,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: aacfbc890a0fce24e976cb6c5e866a7b, type: 3}
   - {fileID: 8300000, guid: ae98caa79350cad4ab4d2bff43e77db9, type: 3}
   - {fileID: 8300000, guid: d7d85f349d07a6547933ed90a0f84b29, type: 3}
+  - {fileID: 8300000, guid: 90ba2d85cff34814bb636b72a47b3986, type: 3}
 --- !u!135 &7737112142038261545
 SphereCollider:
   m_ObjectHideFlags: 0

@@ -11,7 +11,7 @@ public class Turret : MonoBehaviour
 
     public Transform TurretBody;
     public Transform TurretHead;
-
+    public Renderer turretHeadRend;
 
     public float detectionRange = 60f;
 
@@ -27,6 +27,8 @@ public class Turret : MonoBehaviour
     public Transform warning;
     public Renderer warningRend;
 
+    bool spottedSound = false;
+
     void Start()
     {
         projectilePrefab = Resources.Load("Projectile") as GameObject;
@@ -37,6 +39,15 @@ public class Turret : MonoBehaviour
         bool playerInRange = Vector3.Distance(Camera.main.transform.position, TurretHead.position) < detectionRange;
         warning.position = TurretHead.position + new Vector3(0, 5, -1);
         warning.LookAt(Camera.main.transform.position);
+        turretHeadRend.material.SetColor("_FresnelColour", Color.Lerp(turretHeadRend.material.GetColor("_FresnelColour"), playerInRange ? Color.red : Color.clear, Time.deltaTime * 4f));
+
+
+        if (!spottedSound && playerInRange && !dead) {
+            GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayOneShot(6, 0.268f);
+            spottedSound = true;
+        }
+        if (!playerInRange)
+            spottedSound = false;
 
         if (playerInRange) {
             turretLook.LookAt(Camera.main.transform.position);
@@ -75,6 +86,7 @@ public class Turret : MonoBehaviour
     }
 
     public void Shot() {
+        GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayOneShot(7, 0.4f);
         dead = true;
         gameObject.SetActive(false);
     }
