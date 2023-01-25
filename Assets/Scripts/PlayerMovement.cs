@@ -173,6 +173,9 @@ public class PlayerMovement : MonoBehaviour
     bool dead = false;
     float damageCooldown = 0;
 
+    float listsTimer = 0.4f;
+    bool setupLists = false;
+
     void Awake()
     {
         music.volume = 0;
@@ -196,8 +199,8 @@ public class PlayerMovement : MonoBehaviour
     }
 
     private void Start() {
-        GenerateGrabsList();
-        StartMusic();
+        //GenerateGrabsList();
+        //StartMusic();
     }
 
     void StartMusic() {
@@ -246,7 +249,7 @@ public class PlayerMovement : MonoBehaviour
         foreach (Turret Trt in GameObject.FindObjectsOfTypeAll(typeof(Turret))) {
             if (Trt.isActiveAndEnabled) {
                 RaycastHit turretHit;
-                if (Physics.Raycast(Trt.transform.Find("A").position + new Vector3(0, 0, -10), Vector3.forward, out turretHit, 90, PoIPairingMask)) {
+                if (Physics.Raycast(Trt.transform.position + new Vector3(0, 0, -10), Vector3.forward, out turretHit, 90, PoIPairingMask)) {
                     Trt.transform.root.parent = turretHit.collider.transform;
                     //GameObject.CreatePrimitive(PrimitiveType.Sphere).transform.position = PoI.transform.position;
                     //Debug.LogError("PAIRED");
@@ -290,7 +293,21 @@ public class PlayerMovement : MonoBehaviour
 
     }
 
-    void Update()
+    void Update() {
+
+        if (!setupLists) {
+            listsTimer -= Time.deltaTime;
+            if(listsTimer <= 0) {
+                setupLists = true;
+                GenerateGrabsList();
+                StartMusic();
+            }
+        } else {
+            HandleInput();
+        }
+    }
+
+    void HandleInput()
     {
         mousePos = Mouse.current.position.ReadValue();
         crosshairRI.transform.position = Vector3.Lerp(crosshairRI.transform.position, mousePos, Time.deltaTime * 100);
