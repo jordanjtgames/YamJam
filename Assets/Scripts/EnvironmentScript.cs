@@ -12,17 +12,21 @@ public class EnvironmentScript : MonoBehaviour
 
     void Awake()
     {
+        
+    }
+
+    public void SetupCells() {
         allCells = new List<Transform>();
         targetPositions = new List<Vector3>();
         farPositions = new List<Vector3>();
 
-        foreach (MeshCollider MC in GetComponentsInChildren<MeshCollider>()) {
+        foreach (SkinnedMeshRenderer MC in GetComponentsInChildren<SkinnedMeshRenderer>()) {
             allCells.Add(MC.transform);
             targetPositions.Add(MC.transform.position);
             float randX = Random.Range(90, 390);
             float LorR = Random.Range(0, 0.99f);
             float randZ = Random.Range(90, 390);
-            Vector3 farPos = new Vector3(randX * (LorR > 0.5f ? 1 : -1), Random.Range(-20, 20), randZ);
+            Vector3 farPos = new Vector3(randX * (LorR > 0.5f ? 1 : -1), Random.Range(-20, 120), randZ);
             farPositions.Add(farPos);
 
             //MC.transform.position = farPos;

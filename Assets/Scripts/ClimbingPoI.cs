@@ -17,6 +17,9 @@ public class ClimbingPoI : MonoBehaviour
     float holdingCheck = 0.1f;
     bool kicked = false;
 
+    public bool blocked = false;
+    float blocked_t = 0;
+
     //float shrink_t = 0;
 
     void Awake()
@@ -56,6 +59,7 @@ public class ClimbingPoI : MonoBehaviour
             holdingCheck -= Time.deltaTime;
             if(holdingCheck <= 0) {
                 holdingPlayer = false;
+                blocked_t = 0;
                 kicked = false;
             }
         }
@@ -83,5 +87,10 @@ public class ClimbingPoI : MonoBehaviour
     public void HoldingPlayer() {
         holdingCheck = 0.15f;
         holdingPlayer = true;
+        if (blocked) {
+            blocked_t += Time.deltaTime;
+            if(blocked_t > 0.5f)
+                GameObject.Find("_Player").GetComponent<PlayerMovement>().KickPlayer(Vector3.back * 8);
+        }
     }
 }

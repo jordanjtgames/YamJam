@@ -29,6 +29,7 @@ public class PlayerMovement : MonoBehaviour
 
     public RawImage crosshairRI;
     public RawImage crosshairGrabRI;
+    public RawImage crosshairSwingRI;
     public RawImage topLeftRI;
     public RawImage bottomRightRI;
 
@@ -36,6 +37,8 @@ public class PlayerMovement : MonoBehaviour
     public float maxSpeed = 70;//50
     public float playerRange = 90;
     public float hookRange = 45;
+    public float recoil = 123;
+    public float singleShotTime = 1f;
 
     Vector3 targetHookPos;
 
@@ -141,6 +144,9 @@ public class PlayerMovement : MonoBehaviour
     float ammoRegen = 1f;
 
     public VisualEffect hookVFX;
+    public LayerMask PoIPairingMask;
+
+    float vignetteIntensity = 0;
 
     void Awake()
     {
@@ -149,6 +155,7 @@ public class PlayerMovement : MonoBehaviour
         GameObject canvas = GameObject.Find("Canvas");
         crosshairRI = canvas.transform.Find("CrosshairRI").GetComponent<RawImage>();
         crosshairGrabRI = canvas.transform.Find("CrosshairGrabRI").GetComponent<RawImage>();
+        crosshairSwingRI = crosshairGrabRI.transform.GetChild(0).GetComponent<RawImage>();
         topLeftRI = canvas.transform.Find("TopLeft").GetComponent<RawImage>();
         bottomRightRI = canvas.transform.Find("BottomRight").GetComponent<RawImage>();
         testRI = canvas.transform.Find("TestRI").GetComponent<RawImage>();
@@ -157,9 +164,12 @@ public class PlayerMovement : MonoBehaviour
         postFX = GameObject.Find("PostFX").GetComponent<Volume>();
 
         currentTint = normalTint;
-        GenerateGrabsList();
         hookLine.positionCount = arcResolution;
         hookLine_Aim.positionCount = arcResolution;
+    }
+
+    private void Start() {
+        GenerateGrabsList();
     }
 
     public void GenerateGrabsList() {
@@ -172,15 +182,31 @@ public class PlayerMovement : MonoBehaviour
         foreach (ClimbingPoI PoI in GameObject.FindObjectsOfTypeAll(typeof(ClimbingPoI))) {
             if (PoI.isActiveAndEnabled) {
                 grabPoints.Add(PoI.transform);
+
+                RaycastHit PoIPairHit;
+                if(Physics.Raycast(PoI.transform.position + new Vector3(0,0,-10), Vector3.forward, out PoIPairHit, 90, PoIPairingMask)) {
+                    PoI.transform.root.parent = PoIPairHit.collider.transform;
+                    Debug.Log(PoIPairHit.collider.transform);
+                    //GameObject.CreatePrimitive(PrimitiveType.Sphere).transform.position = PoI.transform.position;
+                    //Debug.LogError("PAIRED");
+                }
                 //Debug.Log(LC.gameObject.GetInstanceID());
             }
         }
+
+        foreach (EnvironmentScript EvS in GameObject.FindObjectsOfTypeAll(typeof(EnvironmentScript))) {
+            if (EvS.isActiveAndEnabled) {
+                EvS.SetupCells();
+            }
+        }
+
     }
 
     void Update()
     {
         mousePos = Mouse.current.position.ReadValue();
         crosshairRI.transform.position = Vector3.Lerp(crosshairRI.transform.position, mousePos, Time.deltaTime * 100);
+        crosshairSwingRI.enabled = isSwinging;
 
         Yt = Mathf.Lerp(Yt, isShooting ? 0.5f : (mousePos.y / topLeftRI.transform.position.y), Time.unscaledDeltaTime * 75f);
         Xt = Mathf.Lerp(Xt, isShooting ? 0.5f : (mousePos.x / bottomRightRI.transform.position.x), Time.unscaledDeltaTime * 75f);
@@ -296,7 +322,7 @@ public class PlayerMovement : MonoBehaviour
             crosshairGrabRI.enabled = true;
             crosshairGrabRI.transform.position = Camera.main.WorldToScreenPoint(currentGrab.transform.position);
 
-            player.rotation = Quaternion.Lerp(player.rotation, lookUp.rotation, Time.deltaTime * 5f);
+            player.rotation = Quaternion.Lerp(player.rotation, lookUp.rotation, Time.smoothDeltaTime * 5f);
 
             rb.drag = Mathf.Lerp(25,0,Mathf.Clamp01(dist * 0.5f));
             rb.useGravity = false;
@@ -305,7 +331,7 @@ public class PlayerMovement : MonoBehaviour
             rb.drag = 0;
             rb.useGravity = true;
 
-            player.rotation = Quaternion.Lerp(player.rotation, lookFWD.rotation, Time.deltaTime * 5f);
+            player.rotation = Quaternion.Lerp(player.rotation, lookFWD.rotation, Time.smoothDeltaTime * 5f);
 
             if(rb.velocity.magnitude > maxSpeed) {
                 rb.velocity = Vector3.ClampMagnitude(rb.velocity, maxSpeed);
@@ -549,6 +575,10 @@ public class PlayerMovement : MonoBehaviour
         colAdj.saturation.value = currentSat;
         currentTint = Color.Lerp(currentTint, isShooting ? shootingTint : normalTint, Time.deltaTime);
         colAdj.colorFilter.value = currentTint;
+        postFX.profile.TryGet(out Vignette vig);
+        vig.intensity.value = vignetteIntensity;
+        vignetteIntensity = Mathf.Lerp(vignetteIntensity, 0f, Time.unscaledDeltaTime * 2.5f);
+
 
         if (Mouse.current.leftButton.wasPressedThisFrame && !hasShot && !needsToReleaseShoot && !reloading && ammo > 0) {
             hasShot = true;
@@ -559,7 +589,7 @@ public class PlayerMovement : MonoBehaviour
             if (isShooting) {
                 Vector3 dir = (aimLight.transform.position - player.position).normalized;
                 //shootAnim.TransformDirection(Vector3.back * 123);
-                rb.velocity += dir * -123;
+                rb.velocity += dir * -recoil;
                 explosionVFX.transform.position = aimLight.transform.position;
                 explosionVFX.Play();
                 if (ammo == 0) {
@@ -575,7 +605,7 @@ public class PlayerMovement : MonoBehaviour
         }
 
         if (hasShot) {
-            shootTime -= Time.deltaTime;
+            shootTime -= Time.deltaTime * singleShotTime;
             if(shootTime <= 0) {
                 shootTime = 0;
                 viewAnim.Play("ViewIdle");
@@ -660,6 +690,11 @@ public class PlayerMovement : MonoBehaviour
         hook.position = new Vector3(0, -100, 0);
         //Debug.Log("KickPlayer");
 
+    }
+
+    public void PlayerHit() {
+        Debug.Log("Player Was Hit");
+        vignetteIntensity = 0.75f;
     }
 
     Vector3 QuadCurve(Vector3 start, Vector3 mid, Vector3 end, float t) {
