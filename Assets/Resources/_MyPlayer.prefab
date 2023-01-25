@@ -976,6 +976,9 @@ MonoBehaviour:
   barrel_Hook: {fileID: 5355795446790019301}
   handel: {fileID: 5714257745476867261}
   hookVFX: {fileID: 189704901387411746}
+  PoIPairingMask:
+    serializedVersion: 2
+    m_Bits: 64
 --- !u!135 &7737112142038261545
 SphereCollider:
   m_ObjectHideFlags: 0

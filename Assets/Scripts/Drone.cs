@@ -6,7 +6,16 @@ public class Drone : MonoBehaviour
 {
     public float speed = 10f;
     public float pauseDelay = 1f;
+    public float detectRange = 40f;
+
+    public float chargeUpSpeed = 1;
+
+    public float shootCooldown = 1.5f;
+
     float t = 0;
+    float charge_t = 0;
+    float cooldown_t = 0;
+    bool coolingDown = false;
 
     public Transform drone;
 
@@ -25,16 +34,21 @@ public class Drone : MonoBehaviour
 
     public Transform hover;
 
-    public float detectRange = 40f;
     bool playerDetected = false;
     public Transform droneFWD;
     public Transform droneLookAt;
 
     bool dead = false;
 
+    public Transform warningLook;
+    public Renderer warningRend;
+
+    public GameObject projectilePrefab;
+    public Transform projectilePos;
+
     void Start()
     {
-        
+        projectilePrefab = Resources.Load("Projectile") as GameObject;
     }
 
     void Update()
@@ -46,16 +60,20 @@ public class Drone : MonoBehaviour
 
         playerDetected = Vector3.Distance(Camera.main.transform.position, drone.position) < detectRange;
         droneLookAt.position = drone.position;
-        if (playerDetected)
+        warningLook.position = drone.position + new Vector3(0, 5, -1);
+
+        if (playerDetected) {
             droneLookAt.LookAt(Camera.main.transform.position);
+            warningLook.LookAt(Camera.main.transform.position);
+        }
         drone.rotation = Quaternion.Lerp(drone.rotation, playerDetected ? droneLookAt.rotation : droneFWD.rotation, Time.deltaTime * 19f);
 
-        if (!waiting && !dead)
+        if (!waiting && !dead && !playerDetected)
             drone.localPosition = Vector3.Lerp(drone.localPosition, targetPos, Time.deltaTime * speed * 0.15f);
 
 
 
-        if (Vector3.Distance(drone.position, targetPos) < 0.1f) {
+        if (Vector3.Distance(drone.localPosition, targetPos) < 0.1f) {
             t = pauseDelay;
             waiting = true;
             moveToA = !moveToA;
@@ -70,7 +88,32 @@ public class Drone : MonoBehaviour
         bladeL.Rotate(new Vector3(0, 0, 50 * Time.deltaTime * 298f));
         bladeR.Rotate(new Vector3(0, 0, 50 * Time.deltaTime * 298f));
 
+        if (playerDetected && !dead && !coolingDown) {
+            warningRend.enabled = true;
+            charge_t += Time.deltaTime * chargeUpSpeed;
+            warningRend.material.SetFloat("_YellowRed", Mathf.Clamp01(charge_t * 1.3f));
+            if(charge_t > 0.55f)
+                warningRend.material.SetFloat("_Flash", Mathf.Clamp01((charge_t + 0.5f)));
+            else
+                warningRend.material.SetFloat("_Flash", 0f);
 
+            if (charge_t >= 1) {
+                ShootAtPlayer();
+            }
+        }
+
+        if (!playerDetected) {
+            charge_t = 0;
+            warningRend.enabled = false;
+        }
+
+        if (coolingDown) {
+            cooldown_t -= Time.deltaTime;
+            if (cooldown_t <= 0) {
+                charge_t = 0;
+                coolingDown = false;
+            }
+        }
     }
 
     private void LateUpdate() {
@@ -78,6 +121,15 @@ public class Drone : MonoBehaviour
         Halo_B.LookAt(Camera.main.transform.position);
         LR.SetPosition(0,A.position);
         LR.SetPosition(1,B.position);
+    }
+    public void ShootAtPlayer() {
+        coolingDown = true;
+        warningRend.enabled = false;
+        cooldown_t = shootCooldown;
+
+        GameObject newProj = Instantiate(projectilePrefab, projectilePos.position, Quaternion.identity);
+        newProj.GetComponent<ProjectileScript>().playerPos = GameObject.Find("_Player").transform;
+        newProj.GetComponent<ProjectileScript>().SetMoveDir();
     }
 
     public void Shot() {
