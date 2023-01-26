@@ -200,9 +200,11 @@ public class PlayerMovement : MonoBehaviour
     public Transform groundLight;
 
     public GameObject deathUI;
+    float startZ = 0;
 
     void Awake()
     {
+        startZ = player.position.z;
         Debug.Log("Awake");
         music.volume = 0;
         barrel.rotation = isShooting ? barrel_Shoot.rotation : barrel_Hook.rotation;
@@ -967,6 +969,10 @@ public class PlayerMovement : MonoBehaviour
 
         } else {
             rb.AddForce(Vector3.down * gravity * Time.fixedDeltaTime);
+            if(player.position.z > startZ) {
+                //Debug.LogError("TOO CLOSE");
+                rb.AddForce(Vector3.back * 1120 * Time.fixedDeltaTime);
+            }
         }
     }
 
