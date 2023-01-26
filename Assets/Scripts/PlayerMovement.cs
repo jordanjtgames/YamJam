@@ -7,7 +7,8 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 using UnityEngine.VFX;
 using UnityEngine.Audio;
-
+using TMPro;
+using UnityEngine.SceneManagement;
 
 public class PlayerMovement : MonoBehaviour
 {
@@ -180,12 +181,26 @@ public class PlayerMovement : MonoBehaviour
     public Transform crosshairShootRot;
     public RawImage shotgunCrosshairRI;
 
+    public RawImage blackFade;
+    public GameObject loadingUI;
+
     bool paused = false;
     public Transform pausedCamPos;
     public Transform unpausedCamPos;
     public GameObject pauseMenuGO;
+
+    float levelTime = 0f;
+    float goalTime = 0f;
+    bool needsToLoadMenu = true;
+    public Transform skybox;
+
+    public bool envReady = false;
+    public Transform loadingIcon;
+    public Transform groundLight;
+
     void Awake()
     {
+        Debug.Log("Awake");
         music.volume = 0;
         barrel.rotation = isShooting ? barrel_Shoot.rotation : barrel_Hook.rotation;
 
@@ -203,6 +218,11 @@ public class PlayerMovement : MonoBehaviour
         vignette = canvas.transform.Find("Vignette").GetComponent<RawImage>();
         postFX = GameObject.Find("PostFX").GetComponent<Volume>();
         fadeToWhite = canvas.transform.Find("FadeToWhite").GetComponent<RawImage>();
+        blackFade = canvas.transform.Find("BlackFade").GetComponent<RawImage>();
+        loadingUI = canvas.transform.Find("LoadingUI").gameObject;
+        loadingIcon = loadingUI.transform.Find("LoadingIcon");
+        skybox = GameObject.Find("_Skybox").transform;
+        groundLight = GameObject.Find("GroundLight").transform;
 
         currentTint = normalTint;
         hookLine.positionCount = arcResolution;
@@ -217,6 +237,7 @@ public class PlayerMovement : MonoBehaviour
     void StartMusic() {
         music.clip = currentLevel > 1 ? music_B : music_A;
         music.Play();
+        music.mute = StaticGameParams.muted;
     }
 
     public void PlayOneShot(int id, float vol) {
@@ -307,19 +328,67 @@ public class PlayerMovement : MonoBehaviour
     void Update() {
 
         if (!setupLists) {
-            listsTimer -= Time.deltaTime;
-            if(listsTimer <= 0) {
+            listsTimer -= Time.unscaledDeltaTime;
+            loadingIcon.Rotate(Vector3.forward * Time.unscaledDeltaTime * -670f);
+
+            if (listsTimer <= 0) {
                 setupLists = true;
                 GenerateGrabsList();
                 StartMusic();
+                /*
+                foreach (EnvironmentScript EvS in GameObject.FindObjectsOfTypeAll(typeof(EnvironmentScript))) {
+                    if (EvS.isActiveAndEnabled) {
+                        EvS.MoveToFarPos();
+                    }
+                }
+                */
+                //envReady = true;
+                foreach (EnvironmentScript EvS in GameObject.FindObjectsOfTypeAll(typeof(EnvironmentScript))) {
+                    if (EvS.isActiveAndEnabled) {
+                        EvS.MoveToFarPos();
+                    }
+                }
+
+                envReady = true;
             }
         } else {
+            if(blackFade.color.a > 0.01f) {
+                loadingUI.SetActive(false);
+                blackFade.color = Color.Lerp(blackFade.color, Color.clear, Time.unscaledDeltaTime * 3f);
+            } else {
+                blackFade.color = Color.clear;
+            }
             HandleInput();
+        }
+
+        if (!goalReached) {
+            levelTime += Time.unscaledDeltaTime;
+        } else {
+            goalTime += Time.unscaledDeltaTime;
+            if(goalTime > 1f) {
+                GameObject canvas = GameObject.Find("Canvas");
+                canvas.transform.Find("LevelCompleteUI").gameObject.SetActive(true);
+                int minutes = Mathf.FloorToInt(levelTime / 60F);
+                int seconds = Mathf.FloorToInt(levelTime - minutes * 60);
+                string timeText = string.Format("{0:0}:{1:00}", minutes, seconds);
+                canvas.transform.Find("LevelCompleteUI").GetChild(2).GetComponent<TextMeshProUGUI>().text = timeText;
+
+            }
+            if(goalTime > 3f && needsToLoadMenu) {
+                Debug.LogError("MAIN MENU");
+                needsToLoadMenu = false;
+            }
         }
     }
 
     void HandleInput()
     {
+        if(Keyboard.current.jKey.wasPressedThisFrame && !envReady) {
+            
+            
+        }
+
+        Cursor.visible = paused;
         mousePos = Mouse.current.position.ReadValue();
         crosshairRI.enabled = !paused;
         crosshairRI.transform.position = Vector3.Lerp(crosshairRI.transform.position, mousePos, Time.deltaTime * 100);
@@ -367,6 +436,8 @@ public class PlayerMovement : MonoBehaviour
             damageCooldown -= Time.deltaTime;
         else
             damageCooldown = 0;
+        if (dead)
+            ammo = 0;
 
         float currentShift = 1f;
         mixer.GetFloat("PitchShift", out currentShift);
@@ -439,10 +510,25 @@ public class PlayerMovement : MonoBehaviour
                     currentHitPoI = null;
                 }   
             }
-            
+            if(worldHit.collider.gameObject.name == "ResumeWUI" && Mouse.current.leftButton.wasPressedThisFrame) {
+                Debug.Log("Resume");
+                paused = false;
+                pauseMenuGO.SetActive(false);
+            }
+            if (worldHit.collider.gameObject.name == "RestartWUI" && Mouse.current.leftButton.wasPressedThisFrame) {
+                Debug.Log("Restart");
+                Time.timeScale = 1f;
+                SceneManager.LoadScene(currentLevel);
+            }
+            if (worldHit.collider.gameObject.name == "QuitWUI" && Mouse.current.leftButton.wasPressedThisFrame) {
+                Debug.Log("Quit");
+                Time.timeScale = 1f;
+                SceneManager.LoadScene(0);
+            }
+
         }
         if (Physics.Raycast(ray, out shootHit, 100, shootMask)) {
-            if (isShooting && ammo > 0 && shootHit.collider.tag == "Enemy" && Mouse.current.leftButton.wasPressedThisFrame) {
+            if (isShooting && ammo > 0 && shootHit.collider.tag == "Enemy" && Mouse.current.leftButton.wasPressedThisFrame && shootTime == 0) {
                 if (shootHit.collider.gameObject.name == "DroneCol")
                     shootHit.collider.transform.parent.parent.SendMessage("Shot", SendMessageOptions.DontRequireReceiver);
                 if (shootHit.collider.gameObject.name == "TurretCol")
@@ -530,7 +616,7 @@ public class PlayerMovement : MonoBehaviour
             if(currentHitPoI != null) {
                 Vector3 currentHookPos = currentHitPoI.position;
                 Vector2 currentHookScreenPos = Camera.main.WorldToScreenPoint(currentHookPos);
-                bool inPlayerRange = Vector3.Distance(player.position, currentHookPos) < playerRange;
+                bool inPlayerRange = Vector3.Distance(player.position, currentHookPos) < playerRange && !dead;
 
                 if (Vector2.Distance(mousePos, currentHookScreenPos) < hookRange && inPlayerRange && !isSwinging) {
                     hitSomething = true;
@@ -589,7 +675,7 @@ public class PlayerMovement : MonoBehaviour
                     //    currentHookPos = currentHitPoI.position;
                     Vector2 currentHookScreenPos = Camera.main.WorldToScreenPoint(currentHookPos);
 
-                    bool inPlayerRange = Vector3.Distance(player.position, currentHookPos) < playerRange;
+                    bool inPlayerRange = Vector3.Distance(player.position, currentHookPos) < playerRange && !dead;
 
                     if (Vector2.Distance(mousePos, currentHookScreenPos) < hookRange && inPlayerRange && !isSwinging) {
                         hitSomething = true;
@@ -800,9 +886,8 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-        if (hasShot && !paused) {
+        if (hasShot) {
             shootTime -= Time.deltaTime * singleShotTime;
-            Debug.Log("Shooting");
 
             if (shootTime <= 0) {
                 shootTime = 0;
@@ -822,7 +907,7 @@ public class PlayerMovement : MonoBehaviour
             shootAnim.localRotation = Quaternion.Lerp(shootAnim.localRotation, idlePos.localRotation, Time.deltaTime * 10f);
         }
 
-        if (reloading && !paused) {
+        if (reloading) {
             reload_t += Time.unscaledDeltaTime;
 
             if (reload_t < 0.35f)
@@ -859,6 +944,9 @@ public class PlayerMovement : MonoBehaviour
                 //Finished Level
             }
         }
+
+        skybox.position = player.position;
+        groundLight.position = new Vector3(player.position.x, player.position.y - 25f, groundLight.position.z);
     }
 
     private void FixedUpdate() {

@@ -150,6 +150,7 @@ public class Drone : MonoBehaviour
         drone.gameObject.SetActive(false);
         Halo_A.gameObject.SetActive(false);
         Halo_B.gameObject.SetActive(false);
+        warningRend.enabled = false;
         LR.enabled = false;
     }
 }
