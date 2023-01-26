@@ -92,7 +92,7 @@ public class ClimbingPoI : MonoBehaviour
         holdingPlayer = true;
         if (blocked) {
             blocked_t += Time.deltaTime;
-            if (blocked_t > 0.5f) {
+            if (blocked_t > 0.3f) {
                 GameObject.Find("_Player").GetComponent<PlayerMovement>().KickPlayer(Vector3.back * 8);
                 GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayOneShot(10, 0.67f);
                 GameObject.Find("_Player").GetComponent<PlayerMovement>().PlayerHit();

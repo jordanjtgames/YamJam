@@ -26,6 +26,7 @@ public class MainMenu : MonoBehaviour
 
     void Update()
     {
+        Cursor.visible = true;
         loadingIcon.Rotate(Vector3.forward * Time.unscaledDeltaTime * -670f);
         if(loadingTime > 0) {
             loadingTime -= Time.unscaledDeltaTime;

@@ -173,6 +173,7 @@ public class PlayerMovement : MonoBehaviour
     float playerHealth = 100f;
     bool dead = false;
     float damageCooldown = 0;
+    float death_t = 0f;
 
     float listsTimer = 0.4f;
     bool setupLists = false;
@@ -197,6 +198,8 @@ public class PlayerMovement : MonoBehaviour
     public bool envReady = false;
     public Transform loadingIcon;
     public Transform groundLight;
+
+    public GameObject deathUI;
 
     void Awake()
     {
@@ -223,6 +226,7 @@ public class PlayerMovement : MonoBehaviour
         loadingIcon = loadingUI.transform.Find("LoadingIcon");
         skybox = GameObject.Find("_Skybox").transform;
         groundLight = GameObject.Find("GroundLight").transform;
+        deathUI = canvas.transform.Find("DeathUI").gameObject;
 
         currentTint = normalTint;
         hookLine.positionCount = arcResolution;
@@ -326,6 +330,8 @@ public class PlayerMovement : MonoBehaviour
     }
 
     void Update() {
+        if (currentLevel == 1 && blackFade.color.a <= 0.01f && levelTime > 7f)
+            GameObject.Find("Tut_1").GetComponent<Tutorials>().canShow = true;
 
         if (!setupLists) {
             listsTimer -= Time.unscaledDeltaTime;
@@ -375,7 +381,7 @@ public class PlayerMovement : MonoBehaviour
 
             }
             if(goalTime > 3f && needsToLoadMenu) {
-                Debug.LogError("MAIN MENU");
+                SceneManager.LoadScene(0);
                 needsToLoadMenu = false;
             }
         }
@@ -436,8 +442,15 @@ public class PlayerMovement : MonoBehaviour
             damageCooldown -= Time.deltaTime;
         else
             damageCooldown = 0;
-        if (dead)
+        if (dead) {
             ammo = 0;
+            death_t += Time.unscaledDeltaTime;
+            if(death_t > 2.5f && needsToLoadMenu) {
+                SceneManager.LoadScene(currentLevel);
+                needsToLoadMenu = false;
+            }
+            deathUI.SetActive(true);
+        }
 
         float currentShift = 1f;
         mixer.GetFloat("PitchShift", out currentShift);
@@ -992,7 +1005,7 @@ public class PlayerMovement : MonoBehaviour
         vignetteIntensity = 0.75f;
         if(damageCooldown <= 0)
             playerHealth -= 50f;
-        damageCooldown = 1f;
+        damageCooldown = 0.61f;
     }
 
     Vector3 QuadCurve(Vector3 start, Vector3 mid, Vector3 end, float t) {
